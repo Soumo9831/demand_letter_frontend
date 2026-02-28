@@ -9,6 +9,7 @@ export default function Sidebar() {
   return (
     <div className="hidden md:block w-64 h-full bg-gray-900 text-white p-4 space-y-4">
       <h1 className="text-xl font-bold mb-6">Dashboard</h1>
+
       {role === "admin" && (
         <Button
           variant="ghost"
@@ -18,12 +19,14 @@ export default function Sidebar() {
           Analytics
         </Button>
       )}
+
+      {/* 🔹 Add Demand (Replaced Add Invoice) */}
       <Button
         variant="ghost"
         className="w-full justify-start text-gray-300"
-        onClick={() => setPage("addinvoices")}
+        onClick={() => setPage("adddemand")}
       >
-        Add Invoices
+        Add Demand
       </Button>
 
       <Button
@@ -33,6 +36,7 @@ export default function Sidebar() {
       >
         Manage Invoices
       </Button>
+
       {role === "admin" && (
         <Button
           variant="ghost"
