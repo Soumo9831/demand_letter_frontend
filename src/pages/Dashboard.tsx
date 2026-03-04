@@ -1,7 +1,8 @@
 // src/pages/Dashboard.tsx
+
 import { useGlobal } from "@/context/GlobalContext";
 import Analytics from "./Analytics";
-import Invoices from "./Invoice";
+import DemandLetters from "./DemandLetters"; // ✅ Corrected
 import Manage from "./Manage";
 import AddDemand from "./AddDemand";
 
@@ -12,7 +13,7 @@ export default function Dashboard() {
   return (
     <div className="p-4">
       {page === "analytics" && role === "admin" && <Analytics />}
-      {page === "invoices" && <Invoices />}
+      {page === "invoices" && <DemandLetters />} {/* ✅ Updated component */}
       {page === "manage" && role === "admin" && <Manage />}
       {page === "adddemand" && <AddDemand />}
     </div>

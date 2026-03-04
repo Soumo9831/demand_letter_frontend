@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -13,16 +12,32 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Search } from "lucide-react";
-
+import { Search, Download } from "lucide-react";
+import { jsPDF } from "jspdf";
 import { generateDemandLetter } from "@/utils/generateDemandLetter";
+
+interface InvoiceData {
+  _id: string;
+  totalAmount: number;
+  advance: number;
+  customer?: {
+    name?: string;
+    phone?: string;
+    PAN?: string;
+  };
+}
 
 export default function AddDemand() {
   const [invoiceId, setInvoiceId] = useState("");
+  const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [showInvoice, setShowInvoice] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [errorDialog, setErrorDialog] = useState(false);
   const [generatedLetter, setGeneratedLetter] = useState<string | null>(null);
+
+  const [companyName, setCompanyName] = useState<
+    "Unique Realcon" | "Airde Real Estate" | "Airde Developers" | "Sora"
+  >("Unique Realcon");
 
   const [demandPercentage, setDemandPercentage] = useState<number>(0);
   const [flatNumber, setFlatNumber] = useState("");
@@ -32,134 +47,228 @@ export default function AddDemand() {
   const [tower, setTower] = useState("");
   const [projectAddress, setProjectAddress] = useState("");
 
-  /* Dummy Invoice Data */
-  const dummyInvoice = {
-    name: "Rahul Sharma",
-    phone: "9876543210",
-    pan: "ABCDE1234F",
-    totalAmount: 120000,
-    paid: 50000,
-  };
+  const remaining =
+    invoiceData ? invoiceData.totalAmount - invoiceData.advance : 0;
 
-  const remaining = dummyInvoice.totalAmount - dummyInvoice.paid;
+  /* ================= FETCH INVOICE ================= */
 
-  const handleSearch = () => {
-    if (invoiceId.trim()) {
+  const handleSearch = async () => {
+    if (!invoiceId.trim()) return;
+
+    try {
+      const token = localStorage.getItem("authToken");
+
+      const res = await fetch(
+        "http://localhost:5000/api/v1/invoices/latest",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ invoiceId }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data.message || "Invoice not found");
+        return;
+      }
+
+      setInvoiceData(data.data);
       setShowInvoice(true);
+    } catch (error) {
+      console.error("Fetch Invoice Error:", error);
+      alert("Failed to fetch invoice");
     }
   };
 
-  const handleCreateDemand = () => {
-    // Validation
-    if (
-      demandPercentage > 100 ||
-      demandPercentage < 0 ||
-      !flatNumber ||
-      !floor ||
-      !project ||
-      !projectAddress
-    ) {
-      setErrorDialog(true);
-      return;
-    }
+  /* ================= CREATE DEMAND ================= */
 
-    const demandAmount = Math.round(
-      (remaining * demandPercentage) / 100
-    );
+  /* ================= CREATE DEMAND ================= */
 
-    const letter = generateDemandLetter({
-      customerName: dummyInvoice.name,
-      demandAmount,
-      flatNumber,
-      floor,
-      project,
-      block,
-      tower,
-      projectAddress,
+  /* ================= CREATE DEMAND ================= */
+
+const handleCreateDemand = async () => {
+  if (
+    !invoiceData ||
+    demandPercentage > 100 ||
+    demandPercentage < 0 ||
+    !flatNumber ||
+    !floor ||
+    !project ||
+    !projectAddress
+  ) {
+    setErrorDialog(true);
+    return;
+  }
+
+  const demandAmount = Math.round(
+    (remaining * demandPercentage) / 100
+  );
+
+  try {
+    const token = localStorage.getItem("authToken");
+
+    await fetch("http://localhost:5000/api/v1/demands", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        invoiceData,   // ✅ FIXED — send full invoice object
+        demandPercentage,
+        companyName,
+        flatNumber,
+        floor,
+        project,
+        block,
+        tower,
+        projectAddress,
+      }),
     });
 
-    setGeneratedLetter(letter.trim()); // ✅ trimmed
-    setOpenDialog(false);
+  } catch (error) {
+    console.error("Create Demand Error:", error);
+    alert("Failed to create demand");
+    return;
+  }
+
+  // ⬇️ ORIGINAL LOGIC — UNCHANGED
+  const letter = generateDemandLetter({
+    companyName,
+    customerName: invoiceData.customer?.name || "Customer",
+    demandAmount,
+    flatNumber,
+    floor,
+    project,
+    block,
+    tower,
+    projectAddress,
+  });
+
+  setGeneratedLetter(letter.trim());
+  setOpenDialog(false);
+};
+
+  /* ================= PDF DOWNLOAD ================= */
+
+  const handleDownloadPDF = () => {
+    if (!generatedLetter || !invoiceData) return;
+
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const marginLeft = 20;
+    const marginTop = 20;
+    const pageWidth = doc.internal.pageSize.getWidth() - 40;
+
+    doc.setFont("Times", "Normal");
+    doc.setFontSize(12);
+
+    const lines = doc.splitTextToSize(generatedLetter, pageWidth);
+
+    doc.text(lines, marginLeft, marginTop);
+
+    doc.save(
+      `Demand_Letter_${invoiceData.customer?.name || "Customer"}.pdf`
+    );
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-20">
-      
+    <div className="mx-auto max-w-5xl space-y-8 pb-20">
+
+      {/* ================= PAGE HEADER ================= */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Generate Demand Letter
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Search invoice and create professional demand letters.
+        </p>
+      </div>
+
       {/* ================= SEARCH SECTION ================= */}
-      <Card>
+      <Card className="shadow-sm border">
         <CardHeader>
-          <CardTitle>Search Invoice</CardTitle>
+          <CardTitle className="text-lg">Search Invoice</CardTitle>
         </CardHeader>
-
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Invoice ID</Label>
-              <Input
-                placeholder="Enter Invoice ID"
-                value={invoiceId}
-                onChange={(e) => setInvoiceId(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-end">
-              <Button onClick={handleSearch}>
-                <Search className="mr-2 h-4 w-4" />
-                Search
-              </Button>
-            </div>
+        <CardContent className="grid gap-4 sm:grid-cols-2 items-end">
+          <div>
+            <label className="text-sm font-medium">Invoice ID</label>
+            <Input
+              placeholder="Enter Invoice ID"
+              value={invoiceId}
+              onChange={(e) => setInvoiceId(e.target.value)}
+              className="mt-1"
+            />
           </div>
+
+          <Button onClick={handleSearch} className="h-10">
+            <Search className="mr-2 h-4 w-4" />
+            Search
+          </Button>
         </CardContent>
       </Card>
 
-      {/* ================= INVOICE RESULT ================= */}
-      {showInvoice && (
-        <Card>
+      {/* ================= INVOICE DETAILS ================= */}
+      {showInvoice && invoiceData && (
+        <Card className="shadow-sm border">
           <CardHeader>
-            <CardTitle>Invoice Details</CardTitle>
+            <CardTitle className="text-lg">Invoice Summary</CardTitle>
           </CardHeader>
 
           <CardContent className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <p className="text-sm text-muted-foreground">Customer Name</p>
-                <p className="font-semibold">{dummyInvoice.name}</p>
-              </div>
 
-              <div>
-                <p className="text-sm text-muted-foreground">Phone Number</p>
-                <p className="font-semibold">{dummyInvoice.phone}</p>
-              </div>
-
-              <div>
-                <p className="text-sm text-muted-foreground">PAN</p>
-                <p className="font-semibold">{dummyInvoice.pan}</p>
-              </div>
+            {/* Invoice ID Badge */}
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">
+                Invoice ID
+              </span>
+              <span className="px-3 py-1 text-sm font-semibold bg-muted rounded-md">
+                {invoiceData._id}
+              </span>
             </div>
 
             <Separator />
 
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>Total Amount</span>
-                <span className="font-semibold">
-                  ₹{dummyInvoice.totalAmount.toLocaleString("en-IN")}
-                </span>
+            {/* Financial Grid */}
+            <div className="grid sm:grid-cols-2 gap-6 text-sm">
+
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Customer Name</p>
+                <p className="font-semibold">
+                  {invoiceData.customer?.name}
+                </p>
               </div>
 
-              <div className="flex justify-between text-sm">
-                <span>Paid</span>
-                <span className="font-semibold text-green-600">
-                  ₹{dummyInvoice.paid.toLocaleString("en-IN")}
-                </span>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Total Amount</p>
+                <p className="font-semibold">
+                  ₹{invoiceData.totalAmount.toLocaleString("en-IN")}
+                </p>
               </div>
 
-              <div className="flex justify-between text-sm">
-                <span>Remaining</span>
-                <span className="font-semibold text-red-600">
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Advance Paid</p>
+                <p className="font-semibold">
+                  ₹{invoiceData.advance.toLocaleString("en-IN")}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Remaining Amount</p>
+                <p className="font-semibold text-red-600">
                   ₹{remaining.toLocaleString("en-IN")}
-                </span>
+                </p>
               </div>
+
             </div>
 
             <Separator />
@@ -169,70 +278,50 @@ export default function AddDemand() {
                 Create Demand
               </Button>
             </div>
+
           </CardContent>
         </Card>
       )}
 
-      {/* ================= DEMAND INPUT DIALOG ================= */}
+      {/* ================= DEMAND DIALOG ================= */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Create Demand</DialogTitle>
             <DialogDescription>
-              Fill in required details to generate the demand letter.
+              Fill details to generate demand letter.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label>Demand Percentage (%)</Label>
-              <Input
-                type="number"
-                value={demandPercentage}
-                onChange={(e) =>
-                  setDemandPercentage(Number(e.target.value))
-                }
-              />
+          <div className="space-y-4">
+
+            <div>
+              <label className="text-sm font-medium">Company</label>
+              <select
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value as any)}
+                className="w-full border rounded-md p-2 mt-1"
+              >
+                <option value="Unique Realcon">Unique Realcon</option>
+                <option value="Airde Real Estate">Airde Real Estate</option>
+                <option value="Airde Developers">Airde Developers</option>
+                <option value="Sora">Sora</option>
+              </select>
             </div>
 
-            <Separator />
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Input
-                placeholder="Flat Number *"
-                value={flatNumber}
-                onChange={(e) => setFlatNumber(e.target.value)}
-              />
-              <Input
-                placeholder="Floor *"
-                value={floor}
-                onChange={(e) => setFloor(e.target.value)}
-              />
-              <Input
-                placeholder="Project *"
-                value={project}
-                onChange={(e) => setProject(e.target.value)}
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                placeholder="Block (Optional)"
-                value={block}
-                onChange={(e) => setBlock(e.target.value)}
-              />
-              <Input
-                placeholder="Tower (Optional)"
-                value={tower}
-                onChange={(e) => setTower(e.target.value)}
-              />
-            </div>
-
-            <Textarea
-              placeholder="Project Address *"
-              value={projectAddress}
-              onChange={(e) => setProjectAddress(e.target.value)}
+            <Input
+              type="number"
+              placeholder="Demand Percentage (%)"
+              value={demandPercentage}
+              onChange={(e) => setDemandPercentage(Number(e.target.value))}
             />
+
+            <Input placeholder="Flat Number *" value={flatNumber} onChange={(e) => setFlatNumber(e.target.value)} />
+            <Input placeholder="Floor *" value={floor} onChange={(e) => setFloor(e.target.value)} />
+            <Input placeholder="Project *" value={project} onChange={(e) => setProject(e.target.value)} />
+            <Input placeholder="Block (Optional)" value={block} onChange={(e) => setBlock(e.target.value)} />
+            <Input placeholder="Tower (Optional)" value={tower} onChange={(e) => setTower(e.target.value)} />
+            <Textarea placeholder="Project Address *" value={projectAddress} onChange={(e) => setProjectAddress(e.target.value)} />
           </div>
 
           <DialogFooter>
@@ -248,13 +337,27 @@ export default function AddDemand() {
 
       {/* ================= GENERATED LETTER ================= */}
       {generatedLetter && (
-        <Card>
-          <CardHeader>
+        <Card className="shadow-sm border">
+          <CardHeader className="flex justify-between items-center">
             <CardTitle>Generated Demand Letter</CardTitle>
+            <Button onClick={handleDownloadPDF}>
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
           </CardHeader>
 
           <CardContent>
-            <div className="bg-white text-black p-12 leading-7 whitespace-pre-line rounded-lg border shadow-sm min-h-[600px]">
+            <div
+              style={{
+                backgroundColor: "#ffffff",
+                color: "#000000",
+                padding: "60px",
+                lineHeight: "1.8",
+                fontFamily: "Times New Roman, serif",
+                whiteSpace: "pre-line",
+                minHeight: "800px",
+              }}
+            >
               {generatedLetter}
             </div>
           </CardContent>
@@ -269,10 +372,9 @@ export default function AddDemand() {
               Invalid Input
             </DialogTitle>
             <DialogDescription>
-              Ensure percentage is 0–100 and all required fields are filled.
+              Ensure percentage is 0–100 and required fields are filled.
             </DialogDescription>
           </DialogHeader>
-
           <DialogFooter>
             <Button onClick={() => setErrorDialog(false)}>OK</Button>
           </DialogFooter>

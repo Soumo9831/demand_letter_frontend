@@ -34,7 +34,7 @@ export default function Sidebar() {
         className="w-full justify-start text-gray-300"
         onClick={() => setPage("invoices")}
       >
-        Manage Invoices
+        Manage Demands
       </Button>
 
       {role === "admin" && (
