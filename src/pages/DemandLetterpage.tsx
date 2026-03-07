@@ -51,7 +51,7 @@ const DemandLetter: React.FC<Props> = ({ demand }) => {
 
     bankDetails,
 
-    invoiceSnapshot: { advance, customer },
+    invoiceSnapshot: { totalAmount, advance, customer },
   } = demand;
 
   const handlePrint = () => window.print();
@@ -140,28 +140,29 @@ const DemandLetter: React.FC<Props> = ({ demand }) => {
             <p>Dear Sir/Madam,</p>
 
             <p>
-              We would like to request you to make the payment of{" "}
-              <strong>{formatCurrency(demandAmount)}</strong> only i.e. towards
-              the purchase of Flat No {flatNumber}{" "}
-              {floor ? `,floor ${floor}` : ``} {tower ? `,tower ${tower}` : ``}{" "}
-              {block ? `,block ${block}` : ``}of {project}, situated at{" "}
-              {projectAddress}. This demand letter is submitted as per mode of
-              payment mentioned in Schedule of Ageement.
+              This is to inform you that, as per the payment schedule mentioned
+              in the Agreement for the purchase of Flat No. {flatNumber}{" "}
+              {floor ? `, ${floor} Floor` : ``},{" "}
+              {block ? `, Block-${block}` : ``},{" "}
+              {tower ? `, Tower-${tower}` : ``} {project}, situated at{" "}
+              {projectAddress}, a payment of {formatCurrency(demandAmount)} has
+              become due.
             </p>
             <br />
 
             <p>
-              In this connection, I/We would like to confirm that you have
-              already make a payment of {formatCurrency(advance)}. We would like
-              you to make the banace payment as per the demand which is{" "}
-              {formatCurrency(demandAmount - advance)} only as soon as possible.
+              We would like to confirm that you have already made a payment of
+              {formatCurrency(advance)} towards the said flat. Therefore, the
+              outstanding balance payable is{" "}
+              {formatCurrency(demandAmount - advance)}, which we kindly request
+              you to pay at the earliest as per the agreed payment terms.
             </p>
             <br />
 
             <p>
-              Upon receiving this demand letter, we would like you to feel
-              obligated and make payment on an urget basis to avoid any firther
-              late payment expenses.
+              You are requested to make the payment upon receipt of this demand
+              letter to avoid any late payment charges or penalties as per the
+              terms of the agreement.
             </p>
             <br />
           </div>
@@ -182,7 +183,7 @@ const DemandLetter: React.FC<Props> = ({ demand }) => {
                 </tr>
 
                 <tr>
-                  <td style={styles.bankLabel}>Bank Address</td>
+                  <td style={styles.bankLabel}>Bank Branch</td>
                   <td>: {bankDetails?.bankAddress}</td>
                 </tr>
 

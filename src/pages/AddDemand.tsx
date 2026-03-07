@@ -391,7 +391,7 @@ export default function AddDemand() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">Bank Address *</label>
+                  <label className="text-sm font-medium">Bank Branch *</label>
                   <Input
                     value={bankAddress}
                     onChange={(e) => setBankAddress(e.target.value)}
