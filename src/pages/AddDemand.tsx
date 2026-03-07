@@ -124,7 +124,12 @@ export default function AddDemand() {
       !flatNumber ||
       !floor ||
       !project ||
-      !projectAddress
+      !projectAddress ||
+      !accountHolder ||
+      !bankName ||
+      !bankAddress ||
+      !accountNumber ||
+      !ifscCode
     ) {
       setErrorDialog(true);
       return;
@@ -369,7 +374,7 @@ export default function AddDemand() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">
-                    Name of A/c Holder
+                    Name of A/c Holder *
                   </label>
                   <Input
                     value={accountHolder}
@@ -378,7 +383,7 @@ export default function AddDemand() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">Bank Name</label>
+                  <label className="text-sm font-medium">Bank Name *</label>
                   <Input
                     value={bankName}
                     onChange={(e) => setBankName(e.target.value)}
@@ -386,7 +391,7 @@ export default function AddDemand() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">Bank Address</label>
+                  <label className="text-sm font-medium">Bank Address *</label>
                   <Input
                     value={bankAddress}
                     onChange={(e) => setBankAddress(e.target.value)}
@@ -394,7 +399,9 @@ export default function AddDemand() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">Account Number</label>
+                  <label className="text-sm font-medium">
+                    Account Number *
+                  </label>
                   <Input
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value)}
@@ -402,7 +409,7 @@ export default function AddDemand() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">IFSC Code</label>
+                  <label className="text-sm font-medium">IFSC Cod</label>
                   <Input
                     value={ifscCode}
                     onChange={(e) => setIfscCode(e.target.value)}
@@ -430,7 +437,8 @@ export default function AddDemand() {
             <DialogTitle className="text-red-600">Invalid Input</DialogTitle>
 
             <DialogDescription>
-              Ensure percentage is between 1-100 and required fields are filled.
+              Ensure percentage is between 1-100 and all required fields
+              including bank details are filled.
             </DialogDescription>
           </DialogHeader>
 

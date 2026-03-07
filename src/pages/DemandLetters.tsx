@@ -66,6 +66,14 @@ export default function Demands() {
     });
   };
   const role = localStorage.getItem("role");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkScreen = () => setIsMobile(window.innerWidth < 768);
+    checkScreen();
+    window.addEventListener("resize", checkScreen);
+    return () => window.removeEventListener("resize", checkScreen);
+  }, []);
 
   const getExecutiveFromToken = () => {
     try {
@@ -221,6 +229,99 @@ export default function Demands() {
         .includes(search.toLowerCase()),
   );
 
+  const DemandCard = ({ d }: { d: Demand }) => {
+    const dateObj = new Date(d.createdAt);
+
+    return (
+      <Card className="p-4 rounded-xl border">
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="text-sm text-muted-foreground">Demand ID</p>
+            <p className="font-semibold text-sm">{d._id}</p>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => fetchHistory(d._id)}>
+                <History className="mr-2 h-4 w-4" />
+                History
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => openNewDLModal(d)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                New DL
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => openDemandLetter(d)}>
+                <Download className="mr-2 h-4 w-4" />
+                Download
+              </DropdownMenuItem>
+
+              {role === "admin" && (
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={() => handleDeleteDemand(d._id)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-muted-foreground">Customer</p>
+            <p className="font-medium">{d.invoiceSnapshot?.customer?.name}</p>
+          </div>
+
+          <div>
+            <p className="text-muted-foreground">Invoice</p>
+            <p className="font-medium">{d.invoiceSnapshot?._id}</p>
+          </div>
+
+          <div>
+            <p className="text-muted-foreground">Percentage</p>
+            <p className="font-medium">{d.demandPercentage}%</p>
+          </div>
+
+          <div>
+            <p className="text-muted-foreground">Amount</p>
+            <p className="font-semibold text-green-600">
+              ₹
+              {(
+                d.demandAmount - d.invoiceSnapshot?.advance || 0
+              ).toLocaleString("en-IN")}
+            </p>
+          </div>
+
+          <div className="col-span-2">
+            <p className="text-muted-foreground">Date</p>
+            <p>{dateObj.toLocaleDateString("en-IN")}</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <Button
+            className="w-full"
+            variant="outline"
+            onClick={() => openDemandLetter(d)}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download Demand Letter
+          </Button>
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <div className="w-full px-6 space-y-6">
       <div className="flex gap-3">
@@ -236,36 +337,40 @@ export default function Demands() {
       </div>
 
       <Card className="rounded-2xl border shadow-sm">
-        <CardContent className="p-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Demand ID</TableHead>
-                <TableHead>Invoice ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Executive</TableHead>
-                <TableHead>Percentage</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+        <CardContent className="p-4 md:p-6">
+          {filteredDemands.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-gray-500 gap-2 py-20">
+              <FileText className="h-10 w-10 opacity-40" />
+              <p className="text-lg font-medium">No Demand Letters Found</p>
+              <p className="text-sm text-muted-foreground">
+                Try adjusting your search or create a new demand.
+              </p>
+            </div>
+          ) : isMobile ? (
+            /* MOBILE VIEW */
 
-            {filteredDemands.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-40 text-center">
-                  <div className="flex flex-col items-center justify-center text-gray-500 gap-2">
-                    <FileText className="h-10 w-10 opacity-40" />
-                    <p className="text-lg font-medium">
-                      No Demand Letters Found
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Try adjusting your search or create a new demand.
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
+            <div className="space-y-4">
+              {filteredDemands.map((d) => (
+                <DemandCard key={d._id} d={d} />
+              ))}
+            </div>
+          ) : (
+            /* DESKTOP TABLE */
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Demand ID</TableHead>
+                  <TableHead>Invoice ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Executive</TableHead>
+                  <TableHead>Percentage</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+
               <TableBody>
                 {filteredDemands.map((d) => {
                   const dateObj = new Date(d.createdAt);
@@ -275,22 +380,17 @@ export default function Demands() {
                       <TableCell className="font-medium">{d._id}</TableCell>
                       <TableCell>{d.invoiceSnapshot?._id}</TableCell>
                       <TableCell>{d.invoiceSnapshot?.customer?.name}</TableCell>
-
                       <TableCell>{d.executive || "Admin"}</TableCell>
-
                       <TableCell>{d.demandPercentage}%</TableCell>
-
                       <TableCell className="font-semibold">
                         ₹
                         {(
                           d.demandAmount - d.invoiceSnapshot?.advance || 0
                         ).toLocaleString("en-IN")}
                       </TableCell>
-
                       <TableCell>
                         {dateObj.toLocaleDateString("en-IN")}
                       </TableCell>
-
                       <TableCell className="flex justify-end">
                         <Button
                           size="sm"
@@ -299,51 +399,13 @@ export default function Demands() {
                         >
                           <Download className="h-4 w-4" />
                         </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => fetchHistory(d._id)}
-                            >
-                              <History className="mr-2 h-4 w-4" />
-                              History
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem onClick={() => openNewDLModal(d)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              New DL
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() => openDemandLetter(d)}
-                            >
-                              <Download className="mr-2 h-4 w-4" />
-                              Download
-                            </DropdownMenuItem>
-
-                            {role === "admin" && (
-                              <DropdownMenuItem
-                                className="text-red-600"
-                                onClick={() => handleDeleteDemand(d._id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
-            )}
-          </Table>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
