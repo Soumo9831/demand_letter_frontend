@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 
 import {
   DropdownMenu,
@@ -32,39 +33,16 @@ import {
   Search,
   Trash2,
   History,
+  Download,
 } from "lucide-react";
-
-interface Demand {
-  _id: string;
-  invoiceId: string;
-  demandPercentage: number;
-  demandAmount: number;
-  executive: string;
-  createdAt: string;
-
-  parentDemandId?: string | null;
-  chainRootId?: string | null;
-
-  flatNumber?: string;
-  floor?: string;
-  project?: string;
-  block?: string;
-  tower?: string;
-  projectAddress?: string;
-  companyName?: string;
-
-  invoiceSnapshot: {
-    customer?: {
-      name?: string;
-    };
-  };
-}
+import type { Demand } from "@/types/DemandType";
 
 export default function Demands() {
   const [search, setSearch] = useState("");
   const [demands, setDemands] = useState<Demand[]>([]);
   const [history, setHistory] = useState<Demand[]>([]);
   //const [selectedDemand, setSelectedDemand] = useState<Demand | null>(null);
+  const navigate = useNavigate();
 
   const [newDemandModal, setNewDemandModal] = useState(false);
   const [percentageInput, setPercentageInput] = useState("");
@@ -75,47 +53,53 @@ export default function Demands() {
 
   const [historyModal, setHistoryModal] = useState(false);
 
+  const openDemandLetter = (demand: Demand) => {
+    navigate(`/demand-letter/${demand._id}`, {
+      state: { demand },
+    });
+  };
+
   const showAlert = (msg: string) => {
     setAlertMessage(msg);
     setAlertModal(true);
   };
-const getExecutiveFromToken = () => {
-  try {
-    const token = localStorage.getItem("authToken");
-    if (!token) return "Admin";
+  const getExecutiveFromToken = () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) return "Admin";
 
-    const payload = JSON.parse(atob(token.split(".")[1]));
+      const payload = JSON.parse(atob(token.split(".")[1]));
 
-    return payload?.name || "Admin";
-  } catch (error) {
-    console.error("Token decode error:", error);
-    return "Admin";
-  }
-};
-  const fetchDemands = async () => {
-  try {
-    const token = localStorage.getItem("authToken");
-
-    const executive = getExecutiveFromToken();
-
-    const res = await fetch(
-      `http://localhost:5000/api/v1/demands/latest?executive=${encodeURIComponent(executive)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    const data = await res.json();
-
-    if (data.success) {
-      setDemands(data.data);
+      return payload?.name || "Admin";
+    } catch (error) {
+      console.error("Token decode error:", error);
+      return "Admin";
     }
-  } catch (error) {
-    console.error("Fetch Demands Error:", error);
-  }
-};
+  };
+  const fetchDemands = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+
+      const executive = getExecutiveFromToken();
+
+      const res = await fetch(
+        `http://localhost:5000/api/v1/demands/latest?executive=${encodeURIComponent(executive)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        setDemands(data.data);
+      }
+    } catch (error) {
+      console.error("Fetch Demands Error:", error);
+    }
+  };
 
   useEffect(() => {
     fetchDemands();
@@ -131,7 +115,7 @@ const getExecutiveFromToken = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       const data = await res.json();
@@ -193,7 +177,7 @@ const getExecutiveFromToken = () => {
           body: JSON.stringify({
             invoiceId: selectedForNewDL.invoiceId,
           }),
-        }
+        },
       );
 
       const invoiceData = await invoiceRes.json();
@@ -222,33 +206,29 @@ const getExecutiveFromToken = () => {
         parentDemandId = selectedForNewDL._id;
       }
 
-      const chainRootId =
-        selectedForNewDL.chainRootId || selectedForNewDL._id;
+      const chainRootId = selectedForNewDL.chainRootId || selectedForNewDL._id;
 
-      const createRes = await fetch(
-        "http://localhost:5000/api/v1/demands",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            invoiceData: latestInvoice,
-            demandPercentage,
-            companyName: selectedForNewDL.companyName,
-            flatNumber: selectedForNewDL.flatNumber,
-            floor: selectedForNewDL.floor,
-            project: selectedForNewDL.project,
-            block: selectedForNewDL.block,
-            tower: selectedForNewDL.tower,
-            projectAddress: selectedForNewDL.projectAddress,
-            executive: selectedForNewDL.executive,
-            parentDemandId,
-            chainRootId,
-          }),
-        }
-      );
+      const createRes = await fetch("http://localhost:5000/api/v1/demands", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          invoiceData: latestInvoice,
+          demandPercentage,
+          companyName: selectedForNewDL.companyName,
+          flatNumber: selectedForNewDL.flatNumber,
+          floor: selectedForNewDL.floor,
+          project: selectedForNewDL.project,
+          block: selectedForNewDL.block,
+          tower: selectedForNewDL.tower,
+          projectAddress: selectedForNewDL.projectAddress,
+          executive: selectedForNewDL.executive,
+          parentDemandId,
+          chainRootId,
+        }),
+      });
 
       const result = await createRes.json();
 
@@ -272,12 +252,11 @@ const getExecutiveFromToken = () => {
       d._id.toLowerCase().includes(search.toLowerCase()) ||
       (d.invoiceSnapshot?.customer?.name || "")
         .toLowerCase()
-        .includes(search.toLowerCase())
+        .includes(search.toLowerCase()),
   );
 
   return (
     <div className="w-full px-6 space-y-6">
-
       <div className="flex gap-3">
         <Input
           placeholder="Search demand / customer"
@@ -293,13 +272,12 @@ const getExecutiveFromToken = () => {
       <Card className="rounded-2xl border shadow-sm">
         <CardContent className="p-6">
           <Table>
-
             <TableHeader>
               <TableRow>
                 <TableHead>Demand ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Executive</TableHead>
-                <TableHead>%</TableHead>
+                <TableHead>Percentage</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -312,31 +290,31 @@ const getExecutiveFromToken = () => {
 
                 return (
                   <TableRow key={d._id}>
+                    <TableCell className="font-medium">{d._id}</TableCell>
 
-                    <TableCell className="font-medium">
-                      {d._id}
-                    </TableCell>
+                    <TableCell>{d.invoiceSnapshot?.customer?.name}</TableCell>
 
-                    <TableCell>
-                      {d.invoiceSnapshot?.customer?.name}
-                    </TableCell>
-
-                    <TableCell>
-                      {d.executive || "Admin"}
-                    </TableCell>
+                    <TableCell>{d.executive || "Admin"}</TableCell>
 
                     <TableCell>{d.demandPercentage}%</TableCell>
 
                     <TableCell className="font-semibold">
-                      ₹{d.demandAmount?.toLocaleString("en-IN")}
+                      ₹
+                      {(
+                        d.demandAmount - d.invoiceSnapshot?.advance || 0
+                      ).toLocaleString("en-IN")}
                     </TableCell>
 
-                    <TableCell>
-                      {dateObj.toLocaleDateString("en-IN")}
-                    </TableCell>
+                    <TableCell>{dateObj.toLocaleDateString("en-IN")}</TableCell>
 
                     <TableCell className="flex justify-end">
-
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openDemandLetter(d)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">
@@ -345,19 +323,19 @@ const getExecutiveFromToken = () => {
                         </DropdownMenuTrigger>
 
                         <DropdownMenuContent align="end">
-
-                          <DropdownMenuItem
-                            onClick={() => fetchHistory(d._id)}
-                          >
+                          <DropdownMenuItem onClick={() => fetchHistory(d._id)}>
                             <History className="mr-2 h-4 w-4" />
                             History
                           </DropdownMenuItem>
 
-                          <DropdownMenuItem
-                            onClick={() => openNewDLModal(d)}
-                          >
+                          <DropdownMenuItem onClick={() => openNewDLModal(d)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             New DL
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem onClick={() => openDemandLetter(d)}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download
                           </DropdownMenuItem>
 
                           <DropdownMenuItem
@@ -367,17 +345,13 @@ const getExecutiveFromToken = () => {
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
-
                         </DropdownMenuContent>
                       </DropdownMenu>
-
                     </TableCell>
-
                   </TableRow>
                 );
               })}
             </TableBody>
-
           </Table>
         </CardContent>
       </Card>
@@ -386,36 +360,25 @@ const getExecutiveFromToken = () => {
 
       <Dialog open={newDemandModal} onOpenChange={setNewDemandModal}>
         <DialogContent className="max-w-md">
-
           <DialogHeader>
             <DialogTitle>Create New Demand Letter</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-
             <Input
               placeholder="Enter Demand Percentage"
               value={percentageInput}
               onChange={(e) => setPercentageInput(e.target.value)}
             />
-
           </div>
 
           <DialogFooter>
-
-            <Button
-              variant="outline"
-              onClick={() => setNewDemandModal(false)}
-            >
+            <Button variant="outline" onClick={() => setNewDemandModal(false)}>
               Cancel
             </Button>
 
-            <Button onClick={handleCreateNextDemand}>
-              Create DL
-            </Button>
-
+            <Button onClick={handleCreateNextDemand}>Create DL</Button>
           </DialogFooter>
-
         </DialogContent>
       </Dialog>
 
@@ -423,7 +386,6 @@ const getExecutiveFromToken = () => {
 
       <Dialog open={alertModal} onOpenChange={setAlertModal}>
         <DialogContent className="max-w-sm">
-
           <DialogHeader>
             <DialogTitle>Notification</DialogTitle>
           </DialogHeader>
@@ -433,11 +395,8 @@ const getExecutiveFromToken = () => {
           </div>
 
           <DialogFooter>
-            <Button onClick={() => setAlertModal(false)}>
-              OK
-            </Button>
+            <Button onClick={() => setAlertModal(false)}>OK</Button>
           </DialogFooter>
-
         </DialogContent>
       </Dialog>
 
@@ -445,13 +404,11 @@ const getExecutiveFromToken = () => {
 
       <Dialog open={historyModal} onOpenChange={setHistoryModal}>
         <DialogContent className="max-w-lg">
-
           <DialogHeader>
             <DialogTitle>Demand History</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3">
-
             {history.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No previous demands
@@ -461,15 +418,10 @@ const getExecutiveFromToken = () => {
                 const dateObj = new Date(h.createdAt);
 
                 return (
-                  <div
-                    key={h._id}
-                    className="border rounded-lg p-3 text-sm"
-                  >
+                  <div key={h._id} className="border rounded-lg p-3 text-sm">
                     <div className="font-medium">{h._id}</div>
                     <div>{h.demandPercentage}%</div>
-                    <div>
-                      ₹{h.demandAmount.toLocaleString("en-IN")}
-                    </div>
+                    <div>₹{h.demandAmount.toLocaleString("en-IN")}</div>
                     <div className="text-xs text-muted-foreground">
                       {dateObj.toLocaleDateString("en-IN")}
                     </div>
@@ -477,12 +429,9 @@ const getExecutiveFromToken = () => {
                 );
               })
             )}
-
           </div>
-
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

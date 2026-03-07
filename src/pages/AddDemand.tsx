@@ -12,9 +12,8 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Search, Download } from "lucide-react";
-import { jsPDF } from "jspdf";
-import { generateDemandLetter } from "@/utils/generateDemandLetter";
+import { Search } from "lucide-react";
+import { toast } from "sonner";
 
 interface InvoiceData {
   _id: string;
@@ -31,12 +30,11 @@ export default function AddDemand() {
   const [invoiceId, setInvoiceId] = useState("");
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [showInvoice, setShowInvoice] = useState(false);
-  const [openDialog, setOpenDialog] = useState(false);
+  const [showDemandForm, setShowDemandForm] = useState(false);
   const [errorDialog, setErrorDialog] = useState(false);
-  const [generatedLetter, setGeneratedLetter] = useState<string | null>(null);
 
   const [companyName, setCompanyName] = useState<
-    "Unique Realcon" | "Airde Real Estate" | "Airde Developers" | "Sora"
+    "Unique Realcon" | "Airde Real Estate" | "Airde Developer" | "Sora"
   >("Unique Realcon");
 
   const [demandPercentage, setDemandPercentage] = useState<number>(0);
@@ -47,160 +45,164 @@ export default function AddDemand() {
   const [tower, setTower] = useState("");
   const [projectAddress, setProjectAddress] = useState("");
 
-  const remaining =
-    invoiceData ? invoiceData.totalAmount - invoiceData.advance : 0;
+  const [accountHolder, setAccountHolder] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankAddress, setBankAddress] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [ifscCode, setIfscCode] = useState("");
+
+  const remaining = invoiceData
+    ? invoiceData.totalAmount - invoiceData.advance
+    : 0;
+
+  /* ================= EXECUTIVE FROM TOKEN ================= */
+
+  const getExecutive = () => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return "Admin";
+
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload?.name || "Admin";
+    } catch {
+      return "Admin";
+    }
+  };
+
+  /* ================= RESET FORM ================= */
+
+  const resetForm = () => {
+    setDemandPercentage(0);
+    setFlatNumber("");
+    setFloor("");
+    setProject("");
+    setBlock("");
+    setTower("");
+    setProjectAddress("");
+
+    setAccountHolder("");
+    setBankName("");
+    setBankAddress("");
+    setAccountNumber("");
+    setIfscCode("");
+
+    setShowDemandForm(false);
+  };
 
   /* ================= FETCH INVOICE ================= */
 
   const handleSearch = async () => {
-    if (!invoiceId.trim()) return;
+    if (!invoiceId.trim()) {
+      toast.error("Please enter an Invoice ID");
+      return;
+    }
 
     try {
       const token = localStorage.getItem("authToken");
 
-      const res = await fetch(
-        "http://localhost:5000/api/v1/invoices/latest",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ invoiceId }),
-        }
-      );
+      const res = await fetch("http://localhost:5000/api/v1/invoices/latest", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ invoiceId }),
+      });
 
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        alert(data.message || "Invoice not found");
+        toast.error(data.message || "Invoice not found");
         return;
       }
 
       setInvoiceData(data.data);
       setShowInvoice(true);
+
+      toast.success("Invoice loaded successfully");
     } catch (error) {
-      console.error("Fetch Invoice Error:", error);
-      alert("Failed to fetch invoice");
+      console.error(error);
+      toast.error("Failed to fetch invoice");
     }
   };
 
   /* ================= CREATE DEMAND ================= */
 
-  /* ================= CREATE DEMAND ================= */
-
-  /* ================= CREATE DEMAND ================= */
-
-const token = localStorage.getItem("authToken");
-
-let executive = "Admin"; // default if admin login
-
-if (token) {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    if (payload.name) {
-      executive = payload.name;
+  const handleCreateDemand = async () => {
+    if (
+      !invoiceData ||
+      demandPercentage <= 0 ||
+      demandPercentage > 100 ||
+      !flatNumber ||
+      !floor ||
+      !project ||
+      !projectAddress
+    ) {
+      setErrorDialog(true);
+      return;
     }
-  } catch (err) {
-    console.error("JWT decode error:", err);
-  }
-}
 
-const handleCreateDemand = async () => {
-  if (
-    !invoiceData ||
-    demandPercentage > 100 ||
-    demandPercentage < 0 ||
-    !flatNumber ||
-    !floor ||
-    !project ||
-    !projectAddress
-  ) {
-    setErrorDialog(true);
-    return;
-  }
+    try {
+      const token = localStorage.getItem("authToken");
 
-  const demandAmount = Math.round(
-    (remaining * demandPercentage) / 100
-  );
+      const minimalInvoiceSnapshot = {
+        _id: invoiceData._id,
+        totalAmount: invoiceData.totalAmount,
+        advance: invoiceData.advance,
+        customer: {
+          name: invoiceData.customer?.name,
+          phone: invoiceData.customer?.phone,
+          PAN: invoiceData.customer?.PAN,
+        },
+      };
 
-  try {
-    const token = localStorage.getItem("authToken");
+      const res = await fetch("http://localhost:5000/api/v1/demands", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          invoiceData: minimalInvoiceSnapshot,
+          demandPercentage,
+          companyName,
+          flatNumber,
+          floor,
+          project,
+          block,
+          tower,
+          projectAddress,
+          executive: getExecutive(),
+          bankDetails: {
+            accountHolder,
+            bankName,
+            bankAddress,
+            accountNumber,
+            ifscCode,
+          },
+        }),
+      });
 
-    await fetch("http://localhost:5000/api/v1/demands", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        invoiceData,   // ✅ FIXED — send full invoice object
-        demandPercentage,
-        companyName,
-        flatNumber,
-        floor,
-        project,
-        block,
-        tower,
-        projectAddress,
-        executive,    // Include executive name from token
-      }),
-    });
+      const data = await res.json();
 
-  } catch (error) {
-    console.error("Create Demand Error:", error);
-    alert("Failed to create demand");
-    return;
-  }
+      if (!res.ok || !data.success) {
+        toast.error(data.message || "Failed to create demand");
+        return;
+      }
 
-  // ⬇️ ORIGINAL LOGIC — UNCHANGED
-  const letter = generateDemandLetter({
-    companyName,
-    customerName: invoiceData.customer?.name || "Customer",
-    demandAmount,
-    flatNumber,
-    floor,
-    project,
-    block,
-    tower,
-    projectAddress,
-  });
+      toast.success("Demand letter created successfully");
 
-  setGeneratedLetter(letter.trim());
-  setOpenDialog(false);
-};
-
-  /* ================= PDF DOWNLOAD ================= */
-
-  const handleDownloadPDF = () => {
-    if (!generatedLetter || !invoiceData) return;
-
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-    });
-
-    const marginLeft = 20;
-    const marginTop = 20;
-    const pageWidth = doc.internal.pageSize.getWidth() - 40;
-
-    doc.setFont("Times", "Normal");
-    doc.setFontSize(12);
-
-    const lines = doc.splitTextToSize(generatedLetter, pageWidth);
-
-    doc.text(lines, marginLeft, marginTop);
-
-    doc.save(
-      `Demand_Letter_${invoiceData.customer?.name || "Customer"}.pdf`
-    );
+      resetForm();
+    } catch (error) {
+      console.error(error);
+      toast.error("Something went wrong while creating demand");
+    }
   };
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 pb-20">
+      {/* PAGE HEADER */}
 
-      {/* ================= PAGE HEADER ================= */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
           Generate Demand Letter
@@ -210,11 +212,13 @@ const handleCreateDemand = async () => {
         </p>
       </div>
 
-      {/* ================= SEARCH SECTION ================= */}
+      {/* SEARCH CARD */}
+
       <Card className="shadow-sm border">
         <CardHeader>
           <CardTitle className="text-lg">Search Invoice</CardTitle>
         </CardHeader>
+
         <CardContent className="grid gap-4 sm:grid-cols-2 items-end">
           <div>
             <label className="text-sm font-medium">Invoice ID</label>
@@ -233,7 +237,8 @@ const handleCreateDemand = async () => {
         </CardContent>
       </Card>
 
-      {/* ================= INVOICE DETAILS ================= */}
+      {/* INVOICE SUMMARY */}
+
       {showInvoice && invoiceData && (
         <Card className="shadow-sm border">
           <CardHeader>
@@ -241,12 +246,8 @@ const handleCreateDemand = async () => {
           </CardHeader>
 
           <CardContent className="space-y-6">
-
-            {/* Invoice ID Badge */}
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">
-                Invoice ID
-              </span>
+              <span className="text-sm text-muted-foreground">Invoice ID</span>
               <span className="px-3 py-1 text-sm font-semibold bg-muted rounded-md">
                 {invoiceData._id}
               </span>
@@ -254,149 +255,213 @@ const handleCreateDemand = async () => {
 
             <Separator />
 
-            {/* Financial Grid */}
             <div className="grid sm:grid-cols-2 gap-6 text-sm">
-
-              <div className="space-y-1">
+              <div>
                 <p className="text-muted-foreground">Customer Name</p>
-                <p className="font-semibold">
-                  {invoiceData.customer?.name}
-                </p>
+                <p className="font-semibold">{invoiceData.customer?.name}</p>
               </div>
 
-              <div className="space-y-1">
+              <div>
                 <p className="text-muted-foreground">Total Amount</p>
                 <p className="font-semibold">
                   ₹{invoiceData.totalAmount.toLocaleString("en-IN")}
                 </p>
               </div>
 
-              <div className="space-y-1">
+              <div>
                 <p className="text-muted-foreground">Advance Paid</p>
                 <p className="font-semibold">
                   ₹{invoiceData.advance.toLocaleString("en-IN")}
                 </p>
               </div>
 
-              <div className="space-y-1">
+              <div>
                 <p className="text-muted-foreground">Remaining Amount</p>
                 <p className="font-semibold text-red-600">
                   ₹{remaining.toLocaleString("en-IN")}
                 </p>
               </div>
-
             </div>
 
             <Separator />
 
             <div className="flex justify-end">
-              <Button onClick={() => setOpenDialog(true)}>
+              <Button onClick={() => setShowDemandForm(true)}>
                 Create Demand
               </Button>
             </div>
-
           </CardContent>
         </Card>
       )}
 
-      {/* ================= DEMAND DIALOG ================= */}
-      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Create Demand</DialogTitle>
-            <DialogDescription>
-              Fill details to generate demand letter.
-            </DialogDescription>
-          </DialogHeader>
+      {/* DEMAND FORM */}
 
-          <div className="space-y-4">
-
-            <div>
-              <label className="text-sm font-medium">Company</label>
-              <select
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value as any)}
-                className="w-full border rounded-md p-2 mt-1"
-              >
-                <option value="Unique Realcon">Unique Realcon</option>
-                <option value="Airde Real Estate">Airde Real Estate</option>
-                <option value="Airde Developers">Airde Developers</option>
-                <option value="Sora">Sora</option>
-              </select>
-            </div>
-
-            <Input
-              type="number"
-              placeholder="Demand Percentage (%)"
-              value={demandPercentage}
-              onChange={(e) => setDemandPercentage(Number(e.target.value))}
-            />
-
-            <Input placeholder="Flat Number *" value={flatNumber} onChange={(e) => setFlatNumber(e.target.value)} />
-            <Input placeholder="Floor *" value={floor} onChange={(e) => setFloor(e.target.value)} />
-            <Input placeholder="Project *" value={project} onChange={(e) => setProject(e.target.value)} />
-            <Input placeholder="Block (Optional)" value={block} onChange={(e) => setBlock(e.target.value)} />
-            <Input placeholder="Tower (Optional)" value={tower} onChange={(e) => setTower(e.target.value)} />
-            <Textarea placeholder="Project Address *" value={projectAddress} onChange={(e) => setProjectAddress(e.target.value)} />
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateDemand}>
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ================= GENERATED LETTER ================= */}
-      {generatedLetter && (
+      {showDemandForm && (
         <Card className="shadow-sm border">
-          <CardHeader className="flex justify-between items-center">
-            <CardTitle>Generated Demand Letter</CardTitle>
-            <Button onClick={handleDownloadPDF}>
-              <Download className="mr-2 h-4 w-4" />
-              Download PDF
-            </Button>
+          <CardHeader>
+            <CardTitle>Create Demand Letter</CardTitle>
           </CardHeader>
 
-          <CardContent>
-            <div
-              style={{
-                backgroundColor: "#ffffff",
-                color: "#000000",
-                padding: "60px",
-                lineHeight: "1.8",
-                fontFamily: "Times New Roman, serif",
-                whiteSpace: "pre-line",
-                minHeight: "800px",
-              }}
-            >
-              {generatedLetter}
+          <CardContent className="space-y-6">
+            {/* PROJECT DETAILS */}
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Company</label>
+                <select
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value as any)}
+                  className="w-full border rounded-md p-2 mt-1"
+                >
+                  <option value="Unique Realcon">Unique Realcon</option>
+                  <option value="Airde Real Estate">Airde Real Estate</option>
+                  <option value="Airde Developer">Airde Developer</option>
+                  <option value="Sora">Sora</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">
+                  Demand Percentage (%)
+                </label>
+                <Input
+                  type="number"
+                  value={demandPercentage}
+                  onChange={(e) => setDemandPercentage(Number(e.target.value))}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Flat Number *</label>
+                <Input
+                  value={flatNumber}
+                  onChange={(e) => setFlatNumber(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Floor *</label>
+                <Input
+                  value={floor}
+                  onChange={(e) => setFloor(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Project *</label>
+                <Input
+                  value={project}
+                  onChange={(e) => setProject(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Block</label>
+                <Input
+                  value={block}
+                  onChange={(e) => setBlock(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Tower</label>
+                <Input
+                  value={tower}
+                  onChange={(e) => setTower(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Project Address *</label>
+              <Textarea
+                value={projectAddress}
+                onChange={(e) => setProjectAddress(e.target.value)}
+              />
+            </div>
+
+            <Separator />
+
+            {/* BANK DETAILS */}
+
+            <div>
+              <h3 className="font-semibold text-lg mb-4">
+                Bank Account Details
+              </h3>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">
+                    Name of A/c Holder
+                  </label>
+                  <Input
+                    value={accountHolder}
+                    onChange={(e) => setAccountHolder(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Bank Name</label>
+                  <Input
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Bank Address</label>
+                  <Input
+                    value={bankAddress}
+                    onChange={(e) => setBankAddress(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Account Number</label>
+                  <Input
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">IFSC Code</label>
+                  <Input
+                    value={ifscCode}
+                    onChange={(e) => setIfscCode(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={resetForm}>
+                Cancel
+              </Button>
+
+              <Button onClick={handleCreateDemand}>Create Demand Letter</Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* ================= ERROR DIALOG ================= */}
+      {/* ERROR DIALOG */}
+
       <Dialog open={errorDialog} onOpenChange={setErrorDialog}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-red-600">
-              Invalid Input
-            </DialogTitle>
+            <DialogTitle className="text-red-600">Invalid Input</DialogTitle>
+
             <DialogDescription>
-              Ensure percentage is 0–100 and required fields are filled.
+              Ensure percentage is between 1-100 and required fields are filled.
             </DialogDescription>
           </DialogHeader>
+
           <DialogFooter>
             <Button onClick={() => setErrorDialog(false)}>OK</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

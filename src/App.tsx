@@ -1,18 +1,30 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
+import DemandLetterPage from "./pages/DemandLetterpage";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Login Route */}
+        {/* LOGIN */}
         <Route path="/login" element={<Login />} />
 
-        {/* Dashboard Route (Protected) */}
+        {/* DEMAND LETTER PAGE (Printable Page) */}
+        <Route
+          path="/demand-letter/:id"
+          element={
+            <ProtectedRoute>
+              <DemandLetterPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* DASHBOARD */}
         <Route
           path="/dashboard"
           element={
@@ -21,12 +33,12 @@ function App() {
                 {/* Sidebar */}
                 <Sidebar />
 
-                {/* Right section */}
+                {/* Right Section */}
                 <div className="flex flex-1 flex-col overflow-hidden">
-                  {/* Navbar (fixed height) */}
+                  {/* Navbar */}
                   <Navbar />
 
-                  {/* Scrollable content */}
+                  {/* Page Content */}
                   <main className="flex-1 overflow-y-auto">
                     <Dashboard />
                   </main>
@@ -36,7 +48,7 @@ function App() {
           }
         />
 
-        {/* Redirect everything else to login */}
+        {/* FALLBACK */}
         <Route path="*" element={<Login />} />
       </Routes>
     </BrowserRouter>
