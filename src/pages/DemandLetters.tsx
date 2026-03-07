@@ -19,10 +19,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+
+import {
   MoreVertical,
   Pencil,
   Search,
-  X,
   Trash2,
   History,
 } from "lucide-react";
@@ -32,7 +39,7 @@ interface Demand {
   invoiceId: string;
   demandPercentage: number;
   demandAmount: number;
-  executiveName: string;
+  executive: string;
   createdAt: string;
 
   parentDemandId?: string | null;
@@ -57,7 +64,21 @@ export default function Demands() {
   const [search, setSearch] = useState("");
   const [demands, setDemands] = useState<Demand[]>([]);
   const [history, setHistory] = useState<Demand[]>([]);
-  const [selectedDemand, setSelectedDemand] = useState<Demand | null>(null);
+  //const [selectedDemand, setSelectedDemand] = useState<Demand | null>(null);
+
+  const [newDemandModal, setNewDemandModal] = useState(false);
+  const [percentageInput, setPercentageInput] = useState("");
+  const [selectedForNewDL, setSelectedForNewDL] = useState<Demand | null>(null);
+
+  const [alertModal, setAlertModal] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+
+  const [historyModal, setHistoryModal] = useState(false);
+
+  const showAlert = (msg: string) => {
+    setAlertMessage(msg);
+    setAlertModal(true);
+  };
 
   const fetchDemands = async () => {
     try {
@@ -103,51 +124,45 @@ export default function Demands() {
 
       if (data.success) {
         setHistory(data.data);
+        setHistoryModal(true);
       }
     } catch (error) {
       console.error("Fetch History Error:", error);
     }
   };
 
-  const handleSelectDemand = (demand: Demand) => {
-    setSelectedDemand(demand);
-    fetchHistory(demand._id);
-  };
-
   const handleDeleteDemand = async (demandId: string) => {
     try {
       const confirmDelete = confirm("Delete this Demand Letter?");
-
       if (!confirmDelete) return;
 
       await fetch(`http://localhost:5000/api/v1/demands/${demandId}`, {
         method: "DELETE",
       });
 
-      alert("Demand deleted successfully");
+      showAlert("Demand deleted successfully");
 
       fetchDemands();
-
-      if (selectedDemand?._id === demandId) {
-        setSelectedDemand(null);
-        setHistory([]);
-      }
     } catch (error) {
       console.error("Delete Demand Error:", error);
-      alert("Failed to delete demand");
+      showAlert("Failed to delete demand");
     }
   };
 
-  const handleCreateNextDemand = async (demand: Demand) => {
-    try {
-      const percentageInput = prompt("Enter new demand percentage");
+  const openNewDLModal = (demand: Demand) => {
+    setSelectedForNewDL(demand);
+    setPercentageInput("");
+    setNewDemandModal(true);
+  };
 
-      if (!percentageInput) return;
+  const handleCreateNextDemand = async () => {
+    try {
+      if (!selectedForNewDL) return;
 
       const demandPercentage = Number(percentageInput);
 
       if (demandPercentage <= 0 || demandPercentage > 100) {
-        alert("Percentage must be between 1 and 100");
+        showAlert("Percentage must be between 1 and 100");
         return;
       }
 
@@ -162,7 +177,7 @@ export default function Demands() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            invoiceId: demand.invoiceId,
+            invoiceId: selectedForNewDL.invoiceId,
           }),
         }
       );
@@ -170,7 +185,7 @@ export default function Demands() {
       const invoiceData = await invoiceRes.json();
 
       if (!invoiceData.success) {
-        alert("Failed to fetch latest invoice");
+        showAlert("Failed to fetch latest invoice");
         return;
       }
 
@@ -182,18 +197,19 @@ export default function Demands() {
         latestInvoice?.id ||
         null;
 
-      if (latestInvoiceId === demand.invoiceId) {
-        alert("Create a new Invoice first");
+      if (latestInvoiceId === selectedForNewDL.invoiceId) {
+        showAlert("Create a new Invoice first");
         return;
       }
 
-      let parentDemandId = demand._id;
+      let parentDemandId = selectedForNewDL._id;
 
-      if (demand.parentDemandId === null) {
-        parentDemandId = demand._id;
+      if (selectedForNewDL.parentDemandId === null) {
+        parentDemandId = selectedForNewDL._id;
       }
 
-      const chainRootId = demand.chainRootId || demand._id;
+      const chainRootId =
+        selectedForNewDL.chainRootId || selectedForNewDL._id;
 
       const createRes = await fetch(
         "http://localhost:5000/api/v1/demands",
@@ -206,13 +222,13 @@ export default function Demands() {
           body: JSON.stringify({
             invoiceData: latestInvoice,
             demandPercentage,
-            companyName: demand.companyName,
-            flatNumber: demand.flatNumber,
-            floor: demand.floor,
-            project: demand.project,
-            block: demand.block,
-            tower: demand.tower,
-            projectAddress: demand.projectAddress,
+            companyName: selectedForNewDL.companyName,
+            flatNumber: selectedForNewDL.flatNumber,
+            floor: selectedForNewDL.floor,
+            project: selectedForNewDL.project,
+            block: selectedForNewDL.block,
+            tower: selectedForNewDL.tower,
+            projectAddress: selectedForNewDL.projectAddress,
             parentDemandId,
             chainRootId,
           }),
@@ -222,16 +238,17 @@ export default function Demands() {
       const result = await createRes.json();
 
       if (!result.success) {
-        alert("Failed to create demand");
+        showAlert("Failed to create demand");
         return;
       }
 
-      alert("New Demand Created Successfully");
+      setNewDemandModal(false);
+      showAlert("New Demand Created Successfully");
 
       fetchDemands();
     } catch (error) {
       console.error("Create Next Demand Error:", error);
-      alert("Something went wrong");
+      showAlert("Something went wrong");
     }
   };
 
@@ -244,30 +261,29 @@ export default function Demands() {
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="w-full px-6 space-y-6">
 
-      <div className="lg:col-span-2 space-y-6">
+      <div className="flex gap-3">
+        <Input
+          placeholder="Search demand / customer"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <Button>
+          <Search className="h-4 w-4 mr-2" />
+          Search
+        </Button>
+      </div>
 
-        <div className="sticky top-0 bg-gray-100 pt-2 pb-4">
-          <div className="flex gap-3">
-            <Input
-              placeholder="Search demand / customer"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <Button>
-              <Search className="h-4 w-4 mr-2" />
-              Search
-            </Button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-6">
+      <Card className="rounded-2xl border shadow-sm">
+        <CardContent className="p-6">
           <Table>
+
             <TableHeader>
               <TableRow>
                 <TableHead>Demand ID</TableHead>
                 <TableHead>Customer</TableHead>
+                <TableHead>Executive</TableHead>
                 <TableHead>%</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Date</TableHead>
@@ -280,16 +296,18 @@ export default function Demands() {
                 const dateObj = new Date(d.createdAt);
 
                 return (
-                  <TableRow
-                    key={d._id}
-                    className="cursor-pointer hover:bg-muted/40"
-                  >
+                  <TableRow key={d._id}>
+
                     <TableCell className="font-medium">
                       {d._id}
                     </TableCell>
 
                     <TableCell>
                       {d.invoiceSnapshot?.customer?.name}
+                    </TableCell>
+
+                    <TableCell>
+                      {d.executive || "Admin"}
                     </TableCell>
 
                     <TableCell>{d.demandPercentage}%</TableCell>
@@ -314,14 +332,14 @@ export default function Demands() {
                         <DropdownMenuContent align="end">
 
                           <DropdownMenuItem
-                            onClick={() => handleSelectDemand(d)}
+                            onClick={() => fetchHistory(d._id)}
                           >
                             <History className="mr-2 h-4 w-4" />
                             History
                           </DropdownMenuItem>
 
                           <DropdownMenuItem
-                            onClick={() => handleCreateNextDemand(d)}
+                            onClick={() => openNewDLModal(d)}
                           >
                             <Pencil className="mr-2 h-4 w-4" />
                             New DL
@@ -339,70 +357,117 @@ export default function Demands() {
                       </DropdownMenu>
 
                     </TableCell>
+
                   </TableRow>
                 );
               })}
             </TableBody>
+
           </Table>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {selectedDemand && (
-        <Card className="h-fit sticky top-6">
-          <CardContent className="p-6 space-y-4">
+      {/* NEW DL MODAL */}
 
-            <div className="flex justify-between items-center">
-              <h2 className="font-semibold text-lg">
-                Demand History
-              </h2>
+      <Dialog open={newDemandModal} onOpenChange={setNewDemandModal}>
+        <DialogContent className="max-w-md">
 
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setSelectedDemand(null);
-                  setHistory([]);
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+          <DialogHeader>
+            <DialogTitle>Create New Demand Letter</DialogTitle>
+          </DialogHeader>
 
-            <div className="text-sm text-muted-foreground">
-              Current Demand: <strong>{selectedDemand._id}</strong>
-            </div>
+          <div className="space-y-4 py-4">
+
+            <Input
+              placeholder="Enter Demand Percentage"
+              value={percentageInput}
+              onChange={(e) => setPercentageInput(e.target.value)}
+            />
+
+          </div>
+
+          <DialogFooter>
+
+            <Button
+              variant="outline"
+              onClick={() => setNewDemandModal(false)}
+            >
+              Cancel
+            </Button>
+
+            <Button onClick={handleCreateNextDemand}>
+              Create DL
+            </Button>
+
+          </DialogFooter>
+
+        </DialogContent>
+      </Dialog>
+
+      {/* ALERT MODAL */}
+
+      <Dialog open={alertModal} onOpenChange={setAlertModal}>
+        <DialogContent className="max-w-sm">
+
+          <DialogHeader>
+            <DialogTitle>Notification</DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4 text-sm text-muted-foreground">
+            {alertMessage}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setAlertModal(false)}>
+              OK
+            </Button>
+          </DialogFooter>
+
+        </DialogContent>
+      </Dialog>
+
+      {/* HISTORY MODAL */}
+
+      <Dialog open={historyModal} onOpenChange={setHistoryModal}>
+        <DialogContent className="max-w-lg">
+
+          <DialogHeader>
+            <DialogTitle>Demand History</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
 
             {history.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No previous demands
               </p>
             ) : (
-              <div className="space-y-3">
-                {history.map((h) => {
-                  const dateObj = new Date(h.createdAt);
+              history.map((h) => {
+                const dateObj = new Date(h.createdAt);
 
-                  return (
-                    <div
-                      key={h._id}
-                      className="border rounded-lg p-3 text-sm"
-                    >
-                      <div className="font-medium">{h._id}</div>
-                      <div>{h.demandPercentage}%</div>
-                      <div>
-                        ₹{h.demandAmount.toLocaleString("en-IN")}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {dateObj.toLocaleDateString("en-IN")}
-                      </div>
+                return (
+                  <div
+                    key={h._id}
+                    className="border rounded-lg p-3 text-sm"
+                  >
+                    <div className="font-medium">{h._id}</div>
+                    <div>{h.demandPercentage}%</div>
+                    <div>
+                      ₹{h.demandAmount.toLocaleString("en-IN")}
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="text-xs text-muted-foreground">
+                      {dateObj.toLocaleDateString("en-IN")}
+                    </div>
+                  </div>
+                );
+              })
             )}
 
-          </CardContent>
-        </Card>
-      )}
+          </div>
+
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

@@ -91,6 +91,21 @@ export default function AddDemand() {
 
   /* ================= CREATE DEMAND ================= */
 
+const token = localStorage.getItem("authToken");
+
+let executive = "Admin"; // default if admin login
+
+if (token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (payload.name) {
+      executive = payload.name;
+    }
+  } catch (err) {
+    console.error("JWT decode error:", err);
+  }
+}
+
 const handleCreateDemand = async () => {
   if (
     !invoiceData ||
@@ -128,6 +143,7 @@ const handleCreateDemand = async () => {
         block,
         tower,
         projectAddress,
+        executive,    // Include executive name from token
       }),
     });
 
