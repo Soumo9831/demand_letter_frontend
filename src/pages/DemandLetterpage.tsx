@@ -51,7 +51,7 @@ const DemandLetter: React.FC<Props> = ({ demand }) => {
 
     bankDetails,
 
-    invoiceSnapshot: { totalAmount, advance, customer },
+    invoiceSnapshot: { advance, customer },
   } = demand;
 
   const handlePrint = () => window.print();
