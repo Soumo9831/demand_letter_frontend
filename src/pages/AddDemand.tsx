@@ -409,7 +409,7 @@ export default function AddDemand() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">IFSC Cod</label>
+                  <label className="text-sm font-medium">IFSC Code *</label>
                   <Input
                     value={ifscCode}
                     onChange={(e) => setIfscCode(e.target.value)}
