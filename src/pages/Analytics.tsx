@@ -1,140 +1,153 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
+import { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { FileText, History, IndianRupee } from "lucide-react";
+
+interface Demand {
+  _id: string;
+  demandAmount: number;
+  parentDemandId?: string | null;
+}
 
 export default function Analytics() {
-  const totalInvoices = 152;
-  const totalDue = 2750000;
-  const totalPaid = 1980000;
+  const [totalDemands, setTotalDemands] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [latestDemands, setLatestDemands] = useState(0);
+  const [historyDemands, setHistoryDemands] = useState(0);
 
-  const paymentsData = [
-    { date: "Aug 01", amount: 12000 },
-    { date: "Aug 05", amount: 24000 },
-    { date: "Aug 10", amount: 19000 },
-    { date: "Aug 15", amount: 18000 },
-    { date: "Aug 20", amount: 27000 },
-    { date: "Aug 25", amount: 30000 },
-    { date: "Aug 30", amount: 36000 },
-  ];
+  const fetchAnalytics = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+
+      const res = await fetch(
+        "http://localhost:5000/api/v1/demands",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!data.success) return;
+
+      const demands: Demand[] = data.data || [];
+
+      // TOTAL DEMANDS
+      const totalDL = demands.length;
+
+      // TOTAL AMOUNT
+      let totalAmt = 0;
+
+      demands.forEach((d) => {
+        totalAmt += d.demandAmount || 0;
+      });
+
+      // FIND PARENT IDS
+      const parentIds = new Set(
+        demands
+          .map((d) => d.parentDemandId)
+          .filter((id) => id !== null && id !== undefined)
+      );
+
+      // LATEST DLs
+      const latest = demands.filter((d) => !parentIds.has(d._id));
+
+      // HISTORY DLs
+      const history = demands.filter((d) => parentIds.has(d._id));
+
+      setTotalDemands(totalDL);
+      setTotalAmount(totalAmt);
+      setLatestDemands(latest.length);
+      setHistoryDemands(history.length);
+
+    } catch (error) {
+      console.error("Analytics Fetch Error:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, []);
 
   return (
-    <div className="space-y-6">
-      {/* ================= DESKTOP VIEW ================= */}
-      <div className="hidden md:grid grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Invoices</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{totalInvoices}</p>
-          </CardContent>
-        </Card>
+    <div className="w-full px-6 space-y-6">
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Amount Due</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-red-600">
-              ₹{totalDue.toLocaleString("en-IN")}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Paid Amount</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-green-600">
-              ₹{totalPaid.toLocaleString("en-IN")}
-            </p>
-          </CardContent>
-        </Card>
+      {/* PAGE TITLE */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Demand Analytics
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Overview of demand letters statistics.
+        </p>
       </div>
 
-      {/* ================= MOBILE VIEW ================= */}
-      <div className="md:hidden">
-        <Tabs defaultValue="invoices" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            <TabsTrigger value="due">Due</TabsTrigger>
-            <TabsTrigger value="paid">Paid</TabsTrigger>
-          </TabsList>
+      {/* CARDS */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 
-          <TabsContent value="invoices">
-            <Card>
-              <CardHeader>
-                <CardTitle>Total Invoices</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{totalInvoices}</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        {/* TOTAL DL */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Total Demand Letters
+              </p>
+              <h2 className="text-3xl font-bold mt-2">
+                {totalDemands}
+              </h2>
+            </div>
+            <FileText className="h-6 w-6 text-muted-foreground" />
+          </CardContent>
+        </Card>
 
-          <TabsContent value="due">
-            <Card>
-              <CardHeader>
-                <CardTitle>Total Amount Due</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-red-600">
-                  ₹{totalDue.toLocaleString("en-IN")}
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        {/* TOTAL AMOUNT */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Total Amount Demanded
+              </p>
+              <h2 className="text-3xl font-bold mt-2">
+                ₹{totalAmount.toLocaleString("en-IN")}
+              </h2>
+            </div>
+            <IndianRupee className="h-6 w-6 text-muted-foreground" />
+          </CardContent>
+        </Card>
 
-          <TabsContent value="paid">
-            <Card>
-              <CardHeader>
-                <CardTitle>Total Paid Amount</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-green-600">
-                  ₹{totalPaid.toLocaleString("en-IN")}
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* LATEST DL */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Latest Demand Letters
+              </p>
+              <h2 className="text-3xl font-bold mt-2">
+                {latestDemands}
+              </h2>
+            </div>
+            <FileText className="h-6 w-6 text-muted-foreground" />
+          </CardContent>
+        </Card>
+
+        {/* HISTORY DL */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                History Demand Letters
+              </p>
+              <h2 className="text-3xl font-bold mt-2">
+                {historyDemands}
+              </h2>
+            </div>
+            <History className="h-6 w-6 text-muted-foreground" />
+          </CardContent>
+        </Card>
+
       </div>
 
-      {/* ================= LINE CHART ================= */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Payments Received (Last 30 Days)</CardTitle>
-        </CardHeader>
-
-        <CardContent className="h-[300px] sm:h-[360px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={paymentsData}>
-              <CartesianGrid strokeDasharray="3 3" />
-
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={8} />
-
-              <YAxis />
-              <Tooltip />
-
-              <Line
-                type="monotone"
-                dataKey="amount"
-                strokeWidth={3}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
     </div>
   );
 }
