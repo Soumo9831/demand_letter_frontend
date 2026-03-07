@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
+import { Menu, FilePlus, FileText, Users } from "lucide-react";
 import { useGlobal } from "@/context/GlobalContext";
 
 export default function MobileSidebar() {
@@ -17,46 +17,46 @@ export default function MobileSidebar() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      {/* Mobile menu button */}
-      <SheetTrigger>
-        <Menu className="h-6 w-6 md:hidden" />
+      {/* Mobile Menu Button */}
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="md:hidden">
+          <Menu className="h-6 w-6" />
+        </Button>
       </SheetTrigger>
 
-      {/* Sidebar drawer */}
+      {/* Drawer */}
       <SheetContent side="left" className="p-4">
         <h1 className="text-xl font-semibold mb-6">Menu</h1>
 
         <div className="space-y-3">
-          {role === "admin" && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={() => handleSelect("analytics")}
-            >
-              Analytics
-            </Button>
-          )}
+          {/* Add Demand */}
           <Button
             variant="ghost"
-            className="w-full justify-start"
-            onClick={() => handleSelect("addinvoices")}
+            className="w-full justify-start gap-3"
+            onClick={() => handleSelect("adddemand")}
           >
-            Add Invoices
+            <FilePlus size={18} />
+            Add Demand
           </Button>
 
+          {/* Manage Demands */}
           <Button
             variant="ghost"
-            className="w-full justify-start"
+            className="w-full justify-start gap-3"
             onClick={() => handleSelect("invoices")}
           >
-            Manage Invoices
+            <FileText size={18} />
+            Manage Demands
           </Button>
+
+          {/* Admin Only */}
           {role === "admin" && (
             <Button
               variant="ghost"
-              className="w-full justify-start"
+              className="w-full justify-start gap-3"
               onClick={() => handleSelect("manage")}
             >
+              <Users size={18} />
               Manage Users
             </Button>
           )}

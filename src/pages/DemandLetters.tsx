@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 import {
   DropdownMenu,
@@ -34,8 +35,17 @@ import {
   Trash2,
   History,
   Download,
+  FileText,
 } from "lucide-react";
 import type { Demand } from "@/types/DemandType";
+import {
+  getLatestDemands,
+  getDemandHistory,
+  deleteDemand,
+  createDemand,
+} from "@/api/demand";
+
+import { getLatestInvoice } from "@/api/invoice";
 
 export default function Demands() {
   const [search, setSearch] = useState("");
@@ -48,9 +58,6 @@ export default function Demands() {
   const [percentageInput, setPercentageInput] = useState("");
   const [selectedForNewDL, setSelectedForNewDL] = useState<Demand | null>(null);
 
-  const [alertModal, setAlertModal] = useState(false);
-  const [alertMessage, setAlertMessage] = useState("");
-
   const [historyModal, setHistoryModal] = useState(false);
 
   const openDemandLetter = (demand: Demand) => {
@@ -58,19 +65,13 @@ export default function Demands() {
       state: { demand },
     });
   };
+  const role = localStorage.getItem("role");
 
-  const showAlert = (msg: string) => {
-    setAlertMessage(msg);
-    setAlertModal(true);
-  };
   const getExecutiveFromToken = () => {
     try {
-      const token = localStorage.getItem("authToken");
-      if (!token) return "Admin";
+      const name = localStorage.getItem("userName");
 
-      const payload = JSON.parse(atob(token.split(".")[1]));
-
-      return payload?.name || "Admin";
+      return name || "Admin";
     } catch (error) {
       console.error("Token decode error:", error);
       return "Admin";
@@ -78,20 +79,9 @@ export default function Demands() {
   };
   const fetchDemands = async () => {
     try {
-      const token = localStorage.getItem("authToken");
-
       const executive = getExecutiveFromToken();
 
-      const res = await fetch(
-        `http://localhost:5000/api/v1/demands/latest?executive=${encodeURIComponent(executive)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      const data = await res.json();
+      const data = await getLatestDemands(executive);
 
       if (data.success) {
         setDemands(data.data);
@@ -107,18 +97,7 @@ export default function Demands() {
 
   const fetchHistory = async (id: string) => {
     try {
-      const token = localStorage.getItem("authToken");
-
-      const res = await fetch(
-        `http://localhost:5000/api/v1/demands/history/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      const data = await res.json();
+      const data = await getDemandHistory(id);
 
       if (data.success) {
         setHistory(data.data);
@@ -134,16 +113,13 @@ export default function Demands() {
       const confirmDelete = confirm("Delete this Demand Letter?");
       if (!confirmDelete) return;
 
-      await fetch(`http://localhost:5000/api/v1/demands/${demandId}`, {
-        method: "DELETE",
-      });
+      await deleteDemand(demandId);
 
-      showAlert("Demand deleted successfully");
-
+      toast.success("Demand deleted successfully");
       fetchDemands();
     } catch (error) {
       console.error("Delete Demand Error:", error);
-      showAlert("Failed to delete demand");
+      toast.error("Failed to delete demand");
     }
   };
 
@@ -160,43 +136,30 @@ export default function Demands() {
       const demandPercentage = Number(percentageInput);
 
       if (demandPercentage <= 0 || demandPercentage > 100) {
-        showAlert("Percentage must be between 1 and 100");
+        toast.error("Percentage must be between 1 and 100");
         return;
       }
 
-      const token = localStorage.getItem("authToken");
+      if (demandPercentage <= selectedForNewDL.demandPercentage) {
+        toast.error(
+          `New demand percentage must be greater than the previous (${selectedForNewDL.demandPercentage}%)`,
+        );
+        return;
+      }
 
-      const invoiceRes = await fetch(
-        "http://localhost:5000/api/v1/invoices/latest",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            invoiceId: selectedForNewDL.invoiceId,
-          }),
-        },
-      );
-
-      const invoiceData = await invoiceRes.json();
+      const invoiceData = await getLatestInvoice(selectedForNewDL.invoiceId);
 
       if (!invoiceData.success) {
-        showAlert("Failed to fetch latest invoice");
+        toast.error("Failed to fetch latest invoice");
         return;
       }
 
       const latestInvoice = invoiceData.data;
 
-      const latestInvoiceId =
-        latestInvoice?._id ||
-        latestInvoice?.invoiceId ||
-        latestInvoice?.id ||
-        null;
+      const latestInvoiceId = latestInvoice?._id || null;
 
       if (latestInvoiceId === selectedForNewDL.invoiceId) {
-        showAlert("Create a new Invoice first");
+        toast.error("Create a new Invoice first");
         return;
       }
 
@@ -208,42 +171,45 @@ export default function Demands() {
 
       const chainRootId = selectedForNewDL.chainRootId || selectedForNewDL._id;
 
-      const createRes = await fetch("http://localhost:5000/api/v1/demands", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const minimalInvoiceSnapshot = {
+        _id: latestInvoice._id,
+        totalAmount: latestInvoice.totalAmount,
+        advance: latestInvoice.advance,
+        customer: {
+          name: latestInvoice.customer?.name,
+          phone: latestInvoice.customer?.phone,
+          PAN: latestInvoice.customer?.PAN,
         },
-        body: JSON.stringify({
-          invoiceData: latestInvoice,
-          demandPercentage,
-          companyName: selectedForNewDL.companyName,
-          flatNumber: selectedForNewDL.flatNumber,
-          floor: selectedForNewDL.floor,
-          project: selectedForNewDL.project,
-          block: selectedForNewDL.block,
-          tower: selectedForNewDL.tower,
-          projectAddress: selectedForNewDL.projectAddress,
-          executive: selectedForNewDL.executive,
-          parentDemandId,
-          chainRootId,
-        }),
+      };
+
+      const result = await createDemand({
+        invoiceData: minimalInvoiceSnapshot,
+        demandPercentage,
+        companyName: selectedForNewDL.companyName,
+        flatNumber: selectedForNewDL.flatNumber,
+        floor: selectedForNewDL.floor,
+        project: selectedForNewDL.project,
+        block: selectedForNewDL.block,
+        tower: selectedForNewDL.tower,
+        projectAddress: selectedForNewDL.projectAddress,
+        executive: selectedForNewDL.executive,
+        bankDetails: selectedForNewDL.bankDetails,
+        parentDemandId,
+        chainRootId,
       });
 
-      const result = await createRes.json();
-
       if (!result.success) {
-        showAlert("Failed to create demand");
+        toast.error("Failed to create demand");
         return;
       }
 
       setNewDemandModal(false);
-      showAlert("New Demand Created Successfully");
+      toast.success("New Demand Created Successfully");
 
       fetchDemands();
     } catch (error) {
       console.error("Create Next Demand Error:", error);
-      showAlert("Something went wrong");
+      toast.error("Something went wrong");
     }
   };
 
@@ -275,6 +241,7 @@ export default function Demands() {
             <TableHeader>
               <TableRow>
                 <TableHead>Demand ID</TableHead>
+                <TableHead>Invoice ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Executive</TableHead>
                 <TableHead>Percentage</TableHead>
@@ -284,74 +251,98 @@ export default function Demands() {
               </TableRow>
             </TableHeader>
 
-            <TableBody>
-              {filteredDemands.map((d) => {
-                const dateObj = new Date(d.createdAt);
+            {filteredDemands.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-40 text-center">
+                  <div className="flex flex-col items-center justify-center text-gray-500 gap-2">
+                    <FileText className="h-10 w-10 opacity-40" />
+                    <p className="text-lg font-medium">
+                      No Demand Letters Found
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Try adjusting your search or create a new demand.
+                    </p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              <TableBody>
+                {filteredDemands.map((d) => {
+                  const dateObj = new Date(d.createdAt);
 
-                return (
-                  <TableRow key={d._id}>
-                    <TableCell className="font-medium">{d._id}</TableCell>
+                  return (
+                    <TableRow key={d._id}>
+                      <TableCell className="font-medium">{d._id}</TableCell>
+                      <TableCell>{d.invoiceSnapshot?._id}</TableCell>
+                      <TableCell>{d.invoiceSnapshot?.customer?.name}</TableCell>
 
-                    <TableCell>{d.invoiceSnapshot?.customer?.name}</TableCell>
+                      <TableCell>{d.executive || "Admin"}</TableCell>
 
-                    <TableCell>{d.executive || "Admin"}</TableCell>
+                      <TableCell>{d.demandPercentage}%</TableCell>
 
-                    <TableCell>{d.demandPercentage}%</TableCell>
+                      <TableCell className="font-semibold">
+                        ₹
+                        {(
+                          d.demandAmount - d.invoiceSnapshot?.advance || 0
+                        ).toLocaleString("en-IN")}
+                      </TableCell>
 
-                    <TableCell className="font-semibold">
-                      ₹
-                      {(
-                        d.demandAmount - d.invoiceSnapshot?.advance || 0
-                      ).toLocaleString("en-IN")}
-                    </TableCell>
+                      <TableCell>
+                        {dateObj.toLocaleDateString("en-IN")}
+                      </TableCell>
 
-                    <TableCell>{dateObj.toLocaleDateString("en-IN")}</TableCell>
+                      <TableCell className="flex justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openDemandLetter(d)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
 
-                    <TableCell className="flex justify-end">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openDemandLetter(d)}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => fetchHistory(d._id)}
+                            >
+                              <History className="mr-2 h-4 w-4" />
+                              History
+                            </DropdownMenuItem>
 
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => fetchHistory(d._id)}>
-                            <History className="mr-2 h-4 w-4" />
-                            History
-                          </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openNewDLModal(d)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              New DL
+                            </DropdownMenuItem>
 
-                          <DropdownMenuItem onClick={() => openNewDLModal(d)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            New DL
-                          </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => openDemandLetter(d)}
+                            >
+                              <Download className="mr-2 h-4 w-4" />
+                              Download
+                            </DropdownMenuItem>
 
-                          <DropdownMenuItem onClick={() => openDemandLetter(d)}>
-                            <Download className="mr-2 h-4 w-4" />
-                            Download
-                          </DropdownMenuItem>
-
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => handleDeleteDemand(d._id)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
+                            {role === "admin" && (
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => handleDeleteDemand(d._id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            )}
           </Table>
         </CardContent>
       </Card>
@@ -382,54 +373,63 @@ export default function Demands() {
         </DialogContent>
       </Dialog>
 
-      {/* ALERT MODAL */}
-
-      <Dialog open={alertModal} onOpenChange={setAlertModal}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Notification</DialogTitle>
-          </DialogHeader>
-
-          <div className="py-4 text-sm text-muted-foreground">
-            {alertMessage}
-          </div>
-
-          <DialogFooter>
-            <Button onClick={() => setAlertModal(false)}>OK</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* HISTORY MODAL */}
 
       <Dialog open={historyModal} onOpenChange={setHistoryModal}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>Demand History</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3">
-            {history.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No previous demands
-              </p>
-            ) : (
-              history.map((h) => {
-                const dateObj = new Date(h.createdAt);
+          {history.length === 0 ? (
+            <p className="text-center text-muted-foreground py-6">
+              No previous demands found
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Demand ID</TableHead>
+                  <TableHead>Percentage</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Download</TableHead>
+                </TableRow>
+              </TableHeader>
 
-                return (
-                  <div key={h._id} className="border rounded-lg p-3 text-sm">
-                    <div className="font-medium">{h._id}</div>
-                    <div>{h.demandPercentage}%</div>
-                    <div>₹{h.demandAmount.toLocaleString("en-IN")}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {dateObj.toLocaleDateString("en-IN")}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+              <TableBody>
+                {history.map((h) => {
+                  const dateObj = new Date(h.createdAt);
+
+                  return (
+                    <TableRow key={h._id}>
+                      <TableCell className="font-medium">{h._id}</TableCell>
+
+                      <TableCell>{h.demandPercentage}%</TableCell>
+
+                      <TableCell>
+                        ₹{h.demandAmount.toLocaleString("en-IN")}
+                      </TableCell>
+
+                      <TableCell>
+                        {dateObj.toLocaleDateString("en-IN")}
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openDemandLetter(h)}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </DialogContent>
       </Dialog>
     </div>

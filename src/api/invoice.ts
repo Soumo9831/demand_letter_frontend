@@ -1,5 +1,5 @@
 import api from "./axios";
-import type { IGetLatestInvoiceResponse } from "@/types/invoiceType";
+import type { ISearchInvoiceResponse } from "@/types/invoiceType";
 
 /**
  * ==========================================
@@ -10,14 +10,14 @@ import type { IGetLatestInvoiceResponse } from "@/types/invoiceType";
 export const getLatestInvoice = async (invoiceId: string) => {
   const token = localStorage.getItem("authToken");
 
-  const res = await api.post<IGetLatestInvoiceResponse>(
+  const res = await api.post<ISearchInvoiceResponse>(
     "/invoices/latest",
     { invoiceId },
     {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-    }
+    },
   );
 
   return res.data;

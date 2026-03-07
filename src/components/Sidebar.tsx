@@ -1,51 +1,74 @@
 // src/components/Sidebar.tsx
 import { Button } from "@/components/ui/button";
 import { useGlobal } from "@/context/GlobalContext";
+import {
+  FilePlus,
+  FileText,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { useState } from "react";
 
 export default function Sidebar() {
   const { setPage } = useGlobal();
   const role = localStorage.getItem("role");
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="hidden md:block w-64 h-full bg-gray-900 text-white p-4 space-y-4">
-      <h1 className="text-xl font-bold mb-6">Dashboard</h1>
+    <div
+      className={`${
+        collapsed ? "w-16" : "w-64"
+      } hidden md:flex flex-col h-full bg-gray-900 text-white p-4 transition-all duration-300`}
+    >
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-8">
+        {!collapsed && <h1 className="text-xl font-bold">Dashboard</h1>}
 
-      {role === "admin" && (
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => setCollapsed(!collapsed)}
+          className="text-gray-300 hover:text-white"
+        >
+          {collapsed ? <ChevronRight /> : <ChevronLeft />}
+        </Button>
+      </div>
+
+      {/* MENU ITEMS */}
+      <div className="space-y-3">
+        {/* Add Demand */}
         <Button
           variant="ghost"
-          className="w-full justify-start text-gray-300"
-          onClick={() => setPage("analytics")}
+          className="w-full justify-start text-gray-300 gap-3"
+          onClick={() => setPage("adddemand")}
         >
-          Analytics
+          <FilePlus size={20} />
+          {!collapsed && "Add Demand"}
         </Button>
-      )}
 
-      {/* 🔹 Add Demand (Replaced Add Invoice) */}
-      <Button
-        variant="ghost"
-        className="w-full justify-start text-gray-300"
-        onClick={() => setPage("adddemand")}
-      >
-        Add Demand
-      </Button>
-
-      <Button
-        variant="ghost"
-        className="w-full justify-start text-gray-300"
-        onClick={() => setPage("invoices")}
-      >
-        Manage Demands
-      </Button>
-
-      {role === "admin" && (
+        {/* Manage Demands */}
         <Button
           variant="ghost"
-          className="w-full justify-start text-gray-300"
-          onClick={() => setPage("manage")}
+          className="w-full justify-start text-gray-300 gap-3"
+          onClick={() => setPage("invoices")}
         >
-          Manage Users
+          <FileText size={20} />
+          {!collapsed && "Manage Demands"}
         </Button>
-      )}
+
+        {/* Admin Only */}
+        {role === "admin" && (
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-gray-300 gap-3"
+            onClick={() => setPage("manage")}
+          >
+            <Users size={20} />
+            {!collapsed && "Manage Users"}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
+import { getLatestInvoice } from "@/api/invoice";
+import { createDemand } from "@/api/demand";
 
 interface InvoiceData {
   _id: string;
@@ -34,7 +36,7 @@ export default function AddDemand() {
   const [errorDialog, setErrorDialog] = useState(false);
 
   const [companyName, setCompanyName] = useState<
-    "Unique Realcon" | "Airde Real Estate" | "Airde Developer" | "Sora"
+    "Unique Realcon" | "Airde Real Estate" | "Airde Developer" | "Sora Realtor"
   >("Unique Realcon");
 
   const [demandPercentage, setDemandPercentage] = useState<number>(0);
@@ -58,12 +60,10 @@ export default function AddDemand() {
   /* ================= EXECUTIVE FROM TOKEN ================= */
 
   const getExecutive = () => {
-    const token = localStorage.getItem("authToken");
-    if (!token) return "Admin";
+    const name = localStorage.getItem("userName");
 
     try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload?.name || "Admin";
+      return name ? name : "Admin";
     } catch {
       return "Admin";
     }
@@ -98,21 +98,10 @@ export default function AddDemand() {
     }
 
     try {
-      const token = localStorage.getItem("authToken");
+      const data = await getLatestInvoice(invoiceId);
 
-      const res = await fetch("http://localhost:5000/api/v1/invoices/latest", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ invoiceId }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        toast.error(data.message || "Invoice not found");
+      if (!data.success) {
+        toast.error("Invoice not found");
         return;
       }
 
@@ -125,7 +114,6 @@ export default function AddDemand() {
       toast.error("Failed to fetch invoice");
     }
   };
-
   /* ================= CREATE DEMAND ================= */
 
   const handleCreateDemand = async () => {
@@ -143,8 +131,6 @@ export default function AddDemand() {
     }
 
     try {
-      const token = localStorage.getItem("authToken");
-
       const minimalInvoiceSnapshot = {
         _id: invoiceData._id,
         totalAmount: invoiceData.totalAmount,
@@ -156,36 +142,27 @@ export default function AddDemand() {
         },
       };
 
-      const res = await fetch("http://localhost:5000/api/v1/demands", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const data = await createDemand({
+        invoiceData: minimalInvoiceSnapshot,
+        demandPercentage,
+        companyName,
+        flatNumber,
+        floor,
+        project,
+        block,
+        tower,
+        projectAddress,
+        executive: getExecutive(),
+        bankDetails: {
+          accountHolder,
+          bankName,
+          bankAddress,
+          accountNumber,
+          ifscCode,
         },
-        body: JSON.stringify({
-          invoiceData: minimalInvoiceSnapshot,
-          demandPercentage,
-          companyName,
-          flatNumber,
-          floor,
-          project,
-          block,
-          tower,
-          projectAddress,
-          executive: getExecutive(),
-          bankDetails: {
-            accountHolder,
-            bankName,
-            bankAddress,
-            accountNumber,
-            ifscCode,
-          },
-        }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         toast.error(data.message || "Failed to create demand");
         return;
       }
@@ -316,7 +293,7 @@ export default function AddDemand() {
                   <option value="Unique Realcon">Unique Realcon</option>
                   <option value="Airde Real Estate">Airde Real Estate</option>
                   <option value="Airde Developer">Airde Developer</option>
-                  <option value="Sora">Sora</option>
+                  <option value="Sora Realtor">Sora Realtor</option>
                 </select>
               </div>
 

@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { FileText, History, IndianRupee } from "lucide-react";
-
-interface Demand {
-  _id: string;
-  demandAmount: number;
-  parentDemandId?: string | null;
-}
+import type { Demand } from "@/types/DemandType";
 
 export default function Analytics() {
   const [totalDemands, setTotalDemands] = useState(0);
@@ -18,14 +13,11 @@ export default function Analytics() {
     try {
       const token = localStorage.getItem("authToken");
 
-      const res = await fetch(
-        "http://localhost:5000/api/v1/demands",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await fetch("http://localhost:5000/api/v1/demands", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const data = await res.json();
 
@@ -40,14 +32,14 @@ export default function Analytics() {
       let totalAmt = 0;
 
       demands.forEach((d) => {
-        totalAmt += d.demandAmount || 0;
+        totalAmt += d.amount || 0;
       });
 
       // FIND PARENT IDS
       const parentIds = new Set(
         demands
           .map((d) => d.parentDemandId)
-          .filter((id) => id !== null && id !== undefined)
+          .filter((id) => id !== null && id !== undefined),
       );
 
       // LATEST DLs
@@ -60,7 +52,6 @@ export default function Analytics() {
       setTotalAmount(totalAmt);
       setLatestDemands(latest.length);
       setHistoryDemands(history.length);
-
     } catch (error) {
       console.error("Analytics Fetch Error:", error);
     }
@@ -72,12 +63,9 @@ export default function Analytics() {
 
   return (
     <div className="w-full px-6 space-y-6">
-
       {/* PAGE TITLE */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Demand Analytics
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight">Demand Analytics</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Overview of demand letters statistics.
         </p>
@@ -85,7 +73,6 @@ export default function Analytics() {
 
       {/* CARDS */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-
         {/* TOTAL DL */}
         <Card className="rounded-2xl border shadow-sm">
           <CardContent className="p-6 flex items-center justify-between">
@@ -93,9 +80,7 @@ export default function Analytics() {
               <p className="text-sm text-muted-foreground">
                 Total Demand Letters
               </p>
-              <h2 className="text-3xl font-bold mt-2">
-                {totalDemands}
-              </h2>
+              <h2 className="text-3xl font-bold mt-2">{totalDemands}</h2>
             </div>
             <FileText className="h-6 w-6 text-muted-foreground" />
           </CardContent>
@@ -123,9 +108,7 @@ export default function Analytics() {
               <p className="text-sm text-muted-foreground">
                 Latest Demand Letters
               </p>
-              <h2 className="text-3xl font-bold mt-2">
-                {latestDemands}
-              </h2>
+              <h2 className="text-3xl font-bold mt-2">{latestDemands}</h2>
             </div>
             <FileText className="h-6 w-6 text-muted-foreground" />
           </CardContent>
@@ -138,16 +121,12 @@ export default function Analytics() {
               <p className="text-sm text-muted-foreground">
                 History Demand Letters
               </p>
-              <h2 className="text-3xl font-bold mt-2">
-                {historyDemands}
-              </h2>
+              <h2 className="text-3xl font-bold mt-2">{historyDemands}</h2>
             </div>
             <History className="h-6 w-6 text-muted-foreground" />
           </CardContent>
         </Card>
-
       </div>
-
     </div>
   );
 }

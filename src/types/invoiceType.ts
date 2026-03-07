@@ -71,3 +71,8 @@ export interface IGetLatestInvoiceResponse {
   count: number;
   data: IInvoice[];
 }
+
+export interface ISearchInvoiceResponse {
+  success: boolean;
+  data: IInvoice;
+}

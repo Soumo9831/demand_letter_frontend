@@ -22,6 +22,7 @@ export interface Demand {
 
   status: "pending" | "paid" | "cancelled";
   bankDetails?: BankDetails;
+  amount: number;
 
   createdAt: string;
 }
