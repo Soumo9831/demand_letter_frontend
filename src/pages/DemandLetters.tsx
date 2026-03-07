@@ -79,29 +79,43 @@ export default function Demands() {
     setAlertMessage(msg);
     setAlertModal(true);
   };
+const getExecutiveFromToken = () => {
+  try {
+    const token = localStorage.getItem("authToken");
+    if (!token) return "Admin";
 
+    const payload = JSON.parse(atob(token.split(".")[1]));
+
+    return payload?.name || "Admin";
+  } catch (error) {
+    console.error("Token decode error:", error);
+    return "Admin";
+  }
+};
   const fetchDemands = async () => {
-    try {
-      const token = localStorage.getItem("authToken");
+  try {
+    const token = localStorage.getItem("authToken");
 
-      const res = await fetch(
-        "http://localhost:5000/api/v1/demands/latest",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+    const executive = getExecutiveFromToken();
 
-      const data = await res.json();
-
-      if (data.success) {
-        setDemands(data.data);
+    const res = await fetch(
+      `http://localhost:5000/api/v1/demands/latest?executive=${encodeURIComponent(executive)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
-    } catch (error) {
-      console.error("Fetch Demands Error:", error);
+    );
+
+    const data = await res.json();
+
+    if (data.success) {
+      setDemands(data.data);
     }
-  };
+  } catch (error) {
+    console.error("Fetch Demands Error:", error);
+  }
+};
 
   useEffect(() => {
     fetchDemands();
@@ -229,6 +243,7 @@ export default function Demands() {
             block: selectedForNewDL.block,
             tower: selectedForNewDL.tower,
             projectAddress: selectedForNewDL.projectAddress,
+            executive: selectedForNewDL.executive,
             parentDemandId,
             chainRootId,
           }),
