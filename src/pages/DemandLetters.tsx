@@ -64,6 +64,7 @@ export default function Demands() {
   const [creatingNewDemand, setCreatingNewDemand] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [demandToDelete, setDemandToDelete] = useState<string | null>(null);
+  const formatTime = (iso: string) => iso.split("T")[1].slice(0, 5);
 
   const openDemandLetter = (demand: Demand) => {
     navigate(`/demand-letter/${demand._id}`, {
@@ -143,6 +144,10 @@ export default function Demands() {
     setSelectedForNewDL(demand);
     setPercentageInput("");
     setNewDemandModal(true);
+  };
+  const formatDate = (iso: string) => {
+    const [year, month, day] = iso.split("T")[0].split("-");
+    return `${parseInt(day)}-${month}-${year}`;
   };
 
   const handleCreateNextDemand = async () => {
@@ -266,6 +271,7 @@ export default function Demands() {
                 <TableHead>Percentage</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Time</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -287,8 +293,6 @@ export default function Demands() {
             ) : (
               <TableBody>
                 {filteredDemands.map((d) => {
-                  const dateObj = new Date(d.createdAt);
-
                   return (
                     <TableRow key={d._id}>
                       <TableCell className="font-medium">{d._id}</TableCell>
@@ -306,9 +310,8 @@ export default function Demands() {
                         ).toLocaleString("en-IN")}
                       </TableCell>
 
-                      <TableCell>
-                        {dateObj.toLocaleDateString("en-IN")}
-                      </TableCell>
+                      <TableCell>{formatDate(d.createdAt)}</TableCell>
+                      <TableCell>{formatTime(d.createdAt)}</TableCell>
 
                       <TableCell className="flex justify-end">
                         <Button
@@ -352,7 +355,9 @@ export default function Demands() {
                               <DropdownMenuItem
                                 className="text-red-600"
                                 onClick={() => handleDeleteDemand(d._id)}
-                                disabled={deletingDemandId === d._id || showDeleteModal}
+                                disabled={
+                                  deletingDemandId === d._id || showDeleteModal
+                                }
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
@@ -465,7 +470,9 @@ export default function Demands() {
       <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-red-600">Delete Demand Letter</DialogTitle>
+            <DialogTitle className="text-red-600">
+              Delete Demand Letter
+            </DialogTitle>
             <DialogDescription>
               Are you sure you want to delete this demand letter? This action
               cannot be undone.

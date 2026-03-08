@@ -13,7 +13,10 @@ interface Props {
 const formatCurrency = (amount: number) =>
   `₹ ${Number(amount).toLocaleString("en-IN")}`;
 
-const formatDate = (date: string) => new Date(date).toLocaleDateString("en-IN");
+const formatDate = (iso: string) => {
+  const [year, month, day] = iso.split("T")[0].split("-");
+  return `${parseInt(day)}-${month}-${year}`;
+};
 
 /* =========================
    Component
