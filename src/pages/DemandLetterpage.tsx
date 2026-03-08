@@ -142,8 +142,8 @@ const DemandLetter: React.FC<Props> = ({ demand }) => {
             <p>
               This is to inform you that, as per the payment schedule mentioned
               in the Agreement for the purchase of Flat No. {flatNumber}{" "}
-              {floor ? `, ${floor} Floor` : ``},{" "}
-              {block ? `, Block-${block}` : ``},{" "}
+              {floor ? `, Floor ${floor}` : ``}{" "}
+              {block ? `, Block-${block}` : ``}{" "}
               {tower ? `, Tower-${tower}` : ``} {project}, situated at{" "}
               {projectAddress}, a payment of {formatCurrency(demandAmount)} has
               become due.

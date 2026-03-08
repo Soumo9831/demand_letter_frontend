@@ -34,6 +34,8 @@ export default function AddDemand() {
   const [showInvoice, setShowInvoice] = useState(false);
   const [showDemandForm, setShowDemandForm] = useState(false);
   const [errorDialog, setErrorDialog] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const [companyName, setCompanyName] = useState<
     "Unique Realcon" | "Airde Real Estate" | "Airde Developer" | "Sora Realtor"
@@ -92,12 +94,13 @@ export default function AddDemand() {
   /* ================= FETCH INVOICE ================= */
 
   const handleSearch = async () => {
-    if (!invoiceId.trim()) {
-      toast.error("Please enter an Invoice ID");
-      return;
-    }
-
+    setSearching(true);
     try {
+      if (!invoiceId.trim()) {
+        toast.error("Please enter an Invoice ID");
+        return;
+      }
+
       const data = await getLatestInvoice(invoiceId);
 
       if (!data.success) {
@@ -112,30 +115,33 @@ export default function AddDemand() {
     } catch (error) {
       console.error(error);
       toast.error("Failed to fetch invoice");
+    } finally {
+      setSearching(false);
     }
   };
   /* ================= CREATE DEMAND ================= */
 
   const handleCreateDemand = async () => {
-    if (
-      !invoiceData ||
-      demandPercentage <= 0 ||
-      demandPercentage > 100 ||
-      !flatNumber ||
-      !floor ||
-      !project ||
-      !projectAddress ||
-      !accountHolder ||
-      !bankName ||
-      !bankAddress ||
-      !accountNumber ||
-      !ifscCode
-    ) {
-      setErrorDialog(true);
-      return;
-    }
-
+    setCreating(true);
     try {
+      if (
+        !invoiceData ||
+        demandPercentage <= 0 ||
+        demandPercentage > 100 ||
+        !flatNumber ||
+        !floor ||
+        !project ||
+        !projectAddress ||
+        !accountHolder ||
+        !bankName ||
+        !bankAddress ||
+        !accountNumber ||
+        !ifscCode
+      ) {
+        setErrorDialog(true);
+        return;
+      }
+
       const minimalInvoiceSnapshot = {
         _id: invoiceData._id,
         totalAmount: invoiceData.totalAmount,
@@ -178,6 +184,8 @@ export default function AddDemand() {
     } catch (error) {
       console.error(error);
       toast.error("Something went wrong while creating demand");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -212,9 +220,9 @@ export default function AddDemand() {
             />
           </div>
 
-          <Button onClick={handleSearch} className="h-10">
+          <Button onClick={handleSearch} className="h-10" disabled={searching}>
             <Search className="mr-2 h-4 w-4" />
-            Search
+            {searching ? "Searching..." : "Search"}
           </Button>
         </CardContent>
       </Card>
@@ -268,8 +276,8 @@ export default function AddDemand() {
             <Separator />
 
             <div className="flex justify-end">
-              <Button onClick={() => setShowDemandForm(true)}>
-                Create Demand
+              <Button onClick={() => setShowDemandForm(true)} disabled={creating}>
+                {creating ? "Creating..." : "Create Demand"}
               </Button>
             </div>
           </CardContent>
@@ -419,11 +427,13 @@ export default function AddDemand() {
             </div>
 
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={resetForm}>
+              <Button variant="outline" onClick={resetForm} disabled={creating}>
                 Cancel
               </Button>
 
-              <Button onClick={handleCreateDemand}>Create Demand Letter</Button>
+              <Button onClick={handleCreateDemand} disabled={creating}>
+                {creating ? "Creating..." : "Create Demand Letter"}
+              </Button>
             </div>
           </CardContent>
         </Card>

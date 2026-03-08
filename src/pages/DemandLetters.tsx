@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 
 import {
@@ -59,6 +60,10 @@ export default function Demands() {
   const [selectedForNewDL, setSelectedForNewDL] = useState<Demand | null>(null);
 
   const [historyModal, setHistoryModal] = useState(false);
+  const [deletingDemandId, setDeletingDemandId] = useState<string | null>(null);
+  const [creatingNewDemand, setCreatingNewDemand] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [demandToDelete, setDemandToDelete] = useState<string | null>(null);
 
   const openDemandLetter = (demand: Demand) => {
     navigate(`/demand-letter/${demand._id}`, {
@@ -108,19 +113,30 @@ export default function Demands() {
     }
   };
 
-  const handleDeleteDemand = async (demandId: string) => {
-    try {
-      const confirmDelete = confirm("Delete this Demand Letter?");
-      if (!confirmDelete) return;
+  const openDeleteModal = (demandId: string) => {
+    setDemandToDelete(demandId);
+    setShowDeleteModal(true);
+  };
 
-      await deleteDemand(demandId);
+  const confirmDelete = async () => {
+    if (!demandToDelete) return;
+    setDeletingDemandId(demandToDelete);
+    try {
+      await deleteDemand(demandToDelete);
 
       toast.success("Demand deleted successfully");
       fetchDemands();
+      setShowDeleteModal(false);
     } catch (error) {
       console.error("Delete Demand Error:", error);
       toast.error("Failed to delete demand");
+    } finally {
+      setDeletingDemandId(null);
     }
+  };
+
+  const handleDeleteDemand = (demandId: string) => {
+    openDeleteModal(demandId);
   };
 
   const openNewDLModal = (demand: Demand) => {
@@ -130,6 +146,7 @@ export default function Demands() {
   };
 
   const handleCreateNextDemand = async () => {
+    setCreatingNewDemand(true);
     try {
       if (!selectedForNewDL) return;
 
@@ -210,6 +227,8 @@ export default function Demands() {
     } catch (error) {
       console.error("Create Next Demand Error:", error);
       toast.error("Something went wrong");
+    } finally {
+      setCreatingNewDemand(false);
     }
   };
 
@@ -314,9 +333,12 @@ export default function Demands() {
                               History
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem onClick={() => openNewDLModal(d)}>
+                            <DropdownMenuItem
+                              onClick={() => openNewDLModal(d)}
+                              disabled={creatingNewDemand}
+                            >
                               <Pencil className="mr-2 h-4 w-4" />
-                              New DL
+                              {creatingNewDemand ? "Creating..." : "New DL"}
                             </DropdownMenuItem>
 
                             <DropdownMenuItem
@@ -330,6 +352,7 @@ export default function Demands() {
                               <DropdownMenuItem
                                 className="text-red-600"
                                 onClick={() => handleDeleteDemand(d._id)}
+                                disabled={deletingDemandId === d._id || showDeleteModal}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
@@ -368,7 +391,12 @@ export default function Demands() {
               Cancel
             </Button>
 
-            <Button onClick={handleCreateNextDemand}>Create DL</Button>
+            <Button
+              onClick={handleCreateNextDemand}
+              disabled={creatingNewDemand}
+            >
+              {creatingNewDemand ? "Creating..." : "Create DL"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -430,6 +458,31 @@ export default function Demands() {
               </TableBody>
             </Table>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Delete Demand Letter</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this demand letter? This action
+              cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deletingDemandId === demandToDelete}
+            >
+              {deletingDemandId === demandToDelete ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
