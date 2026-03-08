@@ -206,7 +206,8 @@ const DemandLetter: React.FC<Props> = ({ demand }) => {
           {/* STATUS */}
 
           <div style={styles.status}>
-            <strong>Current Status of the Flat:</strong> UNDER CONSTRUCTION{" "}
+            <strong>Current Status of the Flat:</strong>{" "}
+            {demandPercentage < 100 ? "UNDER CONSTRUCTION " : "CONSTRUCTION "}
             {demandPercentage}% COMPLETED
           </div>
 
