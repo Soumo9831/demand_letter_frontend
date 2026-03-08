@@ -119,6 +119,34 @@ export default function AddDemand() {
       setSearching(false);
     }
   };
+  const bankTemplates = {
+    uniqueRealcon: {
+      accountHolder: "UNIQUE REALCON",
+      bankName: "Induslnd Bank",
+      bankAddress: "Gariahat Branch",
+      accountNumber: "259831918066",
+      ifscCode: "INDB0000029",
+    },
+
+    airdeRealEstate: {
+      accountHolder: "Airde Developer",
+      bankName: "AU Small Finance Bank",
+      bankAddress: "Ballygunge Kolkata",
+      accountNumber: "2602262510313081",
+      ifscCode: "AUBL0002625",
+    },
+  };
+  const applyBankTemplate = (template: keyof typeof bankTemplates) => {
+    const bank = bankTemplates[template];
+
+    setAccountHolder(bank.accountHolder);
+    setBankName(bank.bankName);
+    setBankAddress(bank.bankAddress);
+    setAccountNumber(bank.accountNumber);
+    setIfscCode(bank.ifscCode);
+
+    toast.success("Bank details applied");
+  };
   /* ================= CREATE DEMAND ================= */
 
   const handleCreateDemand = async () => {
@@ -276,7 +304,10 @@ export default function AddDemand() {
             <Separator />
 
             <div className="flex justify-end">
-              <Button onClick={() => setShowDemandForm(true)} disabled={creating}>
+              <Button
+                onClick={() => setShowDemandForm(true)}
+                disabled={creating}
+              >
                 {creating ? "Creating..." : "Create Demand"}
               </Button>
             </div>
@@ -378,6 +409,26 @@ export default function AddDemand() {
               <h3 className="font-semibold text-lg mb-4">
                 Bank Account Details
               </h3>
+
+              <div className="flex flex-wrap gap-2 mb-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyBankTemplate("uniqueRealcon")}
+                >
+                  Unique Realcon
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyBankTemplate("airdeRealEstate")}
+                >
+                  Airde Developer
+                </Button>
+              </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
